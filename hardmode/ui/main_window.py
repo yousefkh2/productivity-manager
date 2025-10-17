@@ -175,6 +175,8 @@ class MainWindow(QtWidgets.QMainWindow if QtWidgets else object):
             }
         """)
         self.task_list_widget.setMaximumHeight(200)
+        self.task_list_widget.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.task_list_widget.customContextMenuRequested.connect(self._show_task_context_menu)
         task_list_layout.addWidget(self.task_list_widget)
         
         # Populate task list
@@ -201,6 +203,22 @@ class MainWindow(QtWidgets.QMainWindow if QtWidgets else object):
                 background-color: #2c3e50;
             }
         """)
+        
+        self.manual_entry_button = QtWidgets.QPushButton("📝 Manual Entry", self)
+        self.manual_entry_button.clicked.connect(self._handle_manual_entry)
+        self.manual_entry_button.setStyleSheet("""
+            QPushButton {
+                background-color: #7f8c8d;
+                color: white;
+                font-weight: bold;
+                padding: 8px;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #95a5a6;
+            }
+        """)
+        self.manual_entry_button.setToolTip("Add pomodoros completed outside the app")
 
         self.status_label = QtWidgets.QLabel("Welcome to Hardmode Pomodoro", self)
         self.status_label.setWordWrap(True)
@@ -217,6 +235,38 @@ class MainWindow(QtWidgets.QMainWindow if QtWidgets else object):
         self.eta_label.setWordWrap(True)
         self._update_eta_display()
         
+        # Sync controls
+        sync_layout = QtWidgets.QHBoxLayout()
+        
+        self.sync_status_label = QtWidgets.QLabel(self)
+        self.sync_status_label.setStyleSheet("font-size: 11px; color: #95a5a6; padding: 5px;")
+        sync_layout.addWidget(self.sync_status_label)
+        
+        sync_layout.addStretch()
+        
+        self.sync_button = QtWidgets.QPushButton("☁️ Sync", self)
+        self.sync_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                padding: 6px 14px;
+                border-radius: 3px;
+                font-size: 11px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+            QPushButton:disabled {
+                background-color: #7f8c8d;
+                color: #bdc3c7;
+            }
+        """)
+        self.sync_button.clicked.connect(self._handle_sync_clicked)
+        self.sync_button.setToolTip("Sync today's data to cloud")
+        sync_layout.addWidget(self.sync_button)
+        
         # Connection status indicator
         self.connection_label = QtWidgets.QLabel(self)
         self.connection_label.setStyleSheet("font-size: 10px; color: gray;")
@@ -228,6 +278,7 @@ class MainWindow(QtWidgets.QMainWindow if QtWidgets else object):
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addWidget(self.start_button)
         button_layout.addWidget(self.abort_button)
+        button_layout.addWidget(self.manual_entry_button)
         button_layout.addWidget(self.end_day_button)
 
         root_layout = QtWidgets.QVBoxLayout()
@@ -238,6 +289,8 @@ class MainWindow(QtWidgets.QMainWindow if QtWidgets else object):
         root_layout.addLayout(button_layout)
         root_layout.addSpacing(10)
         root_layout.addWidget(self.eta_label)  # Add ETA display
+        root_layout.addSpacing(10)
+        root_layout.addLayout(sync_layout)  # Add sync controls
         root_layout.addStretch(1)
         root_layout.addWidget(self.status_label)
         root_layout.addWidget(self.connection_label)  # Add connection status
@@ -276,6 +329,10 @@ class MainWindow(QtWidgets.QMainWindow if QtWidgets else object):
         
         self._update_status_views()
         self._update_eta_display()
+        
+        # Update sync status and try to sync on startup
+        self._update_sync_status()
+        QtCore.QTimer.singleShot(2000, self._sync_on_startup)  # Sync after 2 seconds
 
     # ----- Timer hooks -----
 
@@ -342,6 +399,120 @@ class MainWindow(QtWidgets.QMainWindow if QtWidgets else object):
                 item.setForeground(QtGui.QColor("#f39c12"))
             
             self.task_list_widget.addItem(item)
+    
+    def _show_task_context_menu(self, position):
+        """Show context menu for task list items."""
+        item = self.task_list_widget.itemAt(position)
+        if item is None:
+            return
+        
+        task_name = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        if task_name is None:
+            return
+        
+        # Find the task object
+        task = None
+        for t in self.daily_tasks:
+            if t.name == task_name:
+                task = t
+                break
+        
+        if task is None:
+            return
+        
+        menu = QtWidgets.QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #2c3e50;
+                color: #ecf0f1;
+                border: 1px solid #34495e;
+            }
+            QMenu::item:selected {
+                background-color: #3498db;
+            }
+        """)
+        
+        rename_action = menu.addAction("✏️ Rename Task")
+        mark_complete_action = menu.addAction("✅ Mark Complete" if not task.completed else "↩️ Mark Incomplete")
+        delete_action = menu.addAction("🗑️ Delete Task")
+        
+        action = menu.exec(self.task_list_widget.mapToGlobal(position))
+        
+        if action == rename_action:
+            self._rename_task(task)
+        elif action == mark_complete_action:
+            self._toggle_task_complete(task)
+        elif action == delete_action:
+            self._delete_task(task)
+    
+    def _rename_task(self, task):
+        """Rename a task."""
+        new_name, ok = QtWidgets.QInputDialog.getText(
+            self,
+            "Rename Task",
+            "New task name:",
+            QtWidgets.QLineEdit.EchoMode.Normal,
+            task.name
+        )
+        
+        if not ok or not new_name.strip() or new_name.strip() == task.name:
+            return
+        
+        # Check if new name already exists
+        for t in self.daily_tasks:
+            if t != task and t.name.lower() == new_name.strip().lower():
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Duplicate Name",
+                    f"Task '{new_name}' already exists!"
+                )
+                return
+        
+        old_name = task.name
+        task.name = new_name.strip()
+        
+        # Save to database
+        if self.day_id is not None:
+            self.repository.save_daily_tasks(self.day_id, self.daily_tasks)
+            print(f"✓ Renamed task: '{old_name}' → '{task.name}'")
+        
+        self._refresh_task_list()
+    
+    def _toggle_task_complete(self, task):
+        """Toggle task completion status."""
+        from datetime import datetime
+        task.completed = not task.completed
+        if task.completed:
+            task.completed_at = datetime.now().isoformat()
+        else:
+            task.completed_at = None
+        
+        # Save to database
+        if self.day_id is not None:
+            self.repository.save_daily_tasks(self.day_id, self.daily_tasks)
+            status = "completed" if task.completed else "incomplete"
+            print(f"✓ Marked task as {status}: {task.name}")
+        
+        self._refresh_task_list()
+    
+    def _delete_task(self, task):
+        """Delete a task."""
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            "Delete Task",
+            f"Are you sure you want to delete '{task.name}'?",
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
+        )
+        
+        if reply == QtWidgets.QMessageBox.StandardButton.Yes:
+            self.daily_tasks.remove(task)
+            
+            # Save to database
+            if self.day_id is not None:
+                self.repository.save_daily_tasks(self.day_id, self.daily_tasks)
+                print(f"✓ Deleted task: {task.name}")
+            
+            self._refresh_task_list()
     
     def _ask_mid_day_reason(self, task_name: str) -> str:
         """Ask why the user is adding a task mid-day with structured categories."""
@@ -601,6 +772,135 @@ class MainWindow(QtWidgets.QMainWindow if QtWidgets else object):
         self.timer.current_task = ""
         self.timer.context_switch = False
         self.handle_state_change(self.timer.state)
+    
+    def _handle_manual_entry(self) -> None:
+        """Handle manual pomodoro entry for work done outside the app."""
+        if not self.daily_tasks:
+            QtWidgets.QMessageBox.information(
+                self,
+                "No Tasks",
+                "Please add a task first before logging pomodoros."
+            )
+            return
+        
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Manual Pomodoro Entry")
+        dialog.setModal(True)
+        dialog.resize(450, 300)
+        
+        # Set dark theme styling
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #2c3e50;
+            }
+            QLabel {
+                color: #ecf0f1;
+                font-size: 13px;
+            }
+            QComboBox, QSpinBox {
+                background-color: #34495e;
+                color: #ecf0f1;
+                border: 1px solid #7f8c8d;
+                border-radius: 4px;
+                padding: 5px;
+                font-size: 12px;
+            }
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QPushButton#cancelButton {
+                background-color: #7f8c8d;
+            }
+            QPushButton#cancelButton:hover {
+                background-color: #95a5a6;
+            }
+        """)
+        
+        layout = QtWidgets.QVBoxLayout(dialog)
+        
+        # Title
+        title = QtWidgets.QLabel("Log pomodoros completed outside the app")
+        title.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
+        layout.addWidget(title)
+        
+        subtitle = QtWidgets.QLabel("(e.g., work done on your phone, in meetings, etc.)")
+        subtitle.setStyleSheet("font-size: 11px; color: #95a5a6; margin-bottom: 15px;")
+        layout.addWidget(subtitle)
+        
+        # Task selection
+        task_label = QtWidgets.QLabel("Task:")
+        layout.addWidget(task_label)
+        
+        task_combo = QtWidgets.QComboBox()
+        for task in self.daily_tasks:
+            task_combo.addItem(task.name, task)
+        layout.addWidget(task_combo)
+        
+        layout.addSpacing(10)
+        
+        # Pomodoro count
+        pomo_label = QtWidgets.QLabel("Number of pomodoros:")
+        layout.addWidget(pomo_label)
+        
+        pomo_spin = QtWidgets.QSpinBox()
+        pomo_spin.setMinimum(1)
+        pomo_spin.setMaximum(16)
+        pomo_spin.setValue(1)
+        layout.addWidget(pomo_spin)
+        
+        layout.addStretch()
+        
+        # Buttons
+        button_layout = QtWidgets.QHBoxLayout()
+        
+        cancel_button = QtWidgets.QPushButton("Cancel")
+        cancel_button.setObjectName("cancelButton")
+        cancel_button.clicked.connect(dialog.reject)
+        button_layout.addWidget(cancel_button)
+        
+        button_layout.addStretch()
+        
+        ok_button = QtWidgets.QPushButton("Add Pomodoros")
+        ok_button.setDefault(True)
+        ok_button.clicked.connect(dialog.accept)
+        button_layout.addWidget(ok_button)
+        
+        layout.addLayout(button_layout)
+        
+        if dialog.exec() == QtWidgets.QDialog.Accepted:
+            task = task_combo.currentData()
+            count = pomo_spin.value()
+            
+            # Update task pomodoros
+            task.pomodoros_spent += count
+            
+            # Update day count
+            self.timer.done_today += count
+            
+            # Save to database
+            if self.day_id is not None:
+                self.repository.save_daily_tasks(self.day_id, self.daily_tasks)
+                self.repository.update_day_pomodoros(self.day_id, self.timer.done_today)
+                print(f"✓ Manually added {count} pomodoro(s) to '{task.name}'")
+            
+            # Refresh displays
+            self._refresh_task_list()
+            self._update_eta_display()
+            
+            QtWidgets.QMessageBox.information(
+                self,
+                "Success",
+                f"Added {count} pomodoro(s) to '{task.name}'\n\nTotal today: {self.timer.done_today}/{self.daily_target}"
+            )
     
     def _handle_end_day_clicked(self) -> None:
         """Handle end of day button click."""
@@ -913,3 +1213,103 @@ class MainWindow(QtWidgets.QMainWindow if QtWidgets else object):
                 border: 1px solid #444;
             }
         """)
+    
+    def _update_sync_status(self) -> None:
+        """Update the sync status indicator."""
+        if hasattr(self.repository, '_api_online'):
+            if self.repository._api_online:
+                self.sync_status_label.setText("☁️ Cloud: Connected")
+                self.sync_status_label.setStyleSheet("font-size: 11px; color: #27ae60; padding: 5px;")
+                self.sync_button.setEnabled(True)
+            else:
+                self.sync_status_label.setText("☁️ Cloud: Offline (local only)")
+                self.sync_status_label.setStyleSheet("font-size: 11px; color: #e74c3c; padding: 5px;")
+                self.sync_button.setEnabled(False)
+        else:
+            self.sync_status_label.setText("☁️ Cloud: Disabled")
+            self.sync_status_label.setStyleSheet("font-size: 11px; color: #95a5a6; padding: 5px;")
+            self.sync_button.setEnabled(False)
+    
+    def _handle_sync_clicked(self) -> None:
+        """Handle manual sync button click."""
+        if not hasattr(self.repository, 'push_to_cloud'):
+            QtWidgets.QMessageBox.information(
+                self,
+                "Sync Unavailable",
+                "Cloud sync is not available. Make sure DataManager is being used."
+            )
+            return
+        
+        # Get today's date
+        today = date.today().isoformat()
+        
+        # Disable button and show syncing status
+        self.sync_button.setEnabled(False)
+        self.sync_status_label.setText("☁️ Syncing...")
+        self.sync_status_label.setStyleSheet("font-size: 11px; color: #f39c12; padding: 5px;")
+        QtWidgets.QApplication.processEvents()  # Force UI update
+        
+        try:
+            # Push today's data to cloud
+            result = self.repository.push_to_cloud(today)
+            
+            if result['success']:
+                QtWidgets.QMessageBox.information(
+                    self,
+                    "Sync Complete",
+                    f"✅ Successfully synced to cloud!\n\n"
+                    f"• Day synced: {result['day_synced']}\n"
+                    f"• Tasks synced: {result['tasks_synced']}\n"
+                    f"• Pomodoros synced: {result['pomos_synced']}"
+                )
+                self.sync_status_label.setText("☁️ Cloud: Synced")
+                self.sync_status_label.setStyleSheet("font-size: 11px; color: #27ae60; padding: 5px;")
+            else:
+                error_msg = result.get('error', 'Unknown error')
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Sync Failed",
+                    f"❌ Failed to sync to cloud:\n\n{error_msg}\n\n"
+                    f"Your data is safely stored locally."
+                )
+                self.sync_status_label.setText("☁️ Cloud: Sync failed")
+                self.sync_status_label.setStyleSheet("font-size: 11px; color: #e74c3c; padding: 5px;")
+        
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Sync Error",
+                f"An error occurred during sync:\n\n{str(e)}\n\n"
+                f"Your data is safely stored locally."
+            )
+            self.sync_status_label.setText("☁️ Cloud: Error")
+            self.sync_status_label.setStyleSheet("font-size: 11px; color: #e74c3c; padding: 5px;")
+        
+        finally:
+            # Re-enable button
+            self.sync_button.setEnabled(True)
+    
+    def _sync_on_startup(self) -> None:
+        """Automatically sync on app startup (pull latest data)."""
+        if not hasattr(self.repository, 'pull_from_cloud'):
+            return
+        
+        if not hasattr(self.repository, '_api_online') or not self.repository._api_online:
+            return
+        
+        # Get today's date
+        today = date.today().isoformat()
+        
+        try:
+            # Pull today's data from cloud (non-blocking, silent)
+            result = self.repository.pull_from_cloud(today)
+            
+            if result['success'] and (result['day_pulled'] or result['tasks_pulled'] > 0):
+                print(f"✓ Pulled data from cloud: {result['tasks_pulled']} tasks")
+                # Refresh UI to show pulled data
+                self._refresh_task_list()
+                self._update_eta_display()
+        
+        except Exception as e:
+            print(f"⚠ Startup sync failed: {e}")
+            # Silently fail - don't interrupt user experience

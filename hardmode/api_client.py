@@ -175,6 +175,203 @@ class APIClient:
             Statistics data including total sessions, completed sessions, etc.
         """
         return self._request('GET', '/api/statistics')
+    
+    # Day methods
+    def get_day(self, date: str) -> Optional[Dict]:
+        """
+        Get day by date (YYYY-MM-DD)
+        
+        Args:
+            date: Date in YYYY-MM-DD format
+            
+        Returns:
+            Day data including target_pomos, finished_pomos, reflection, etc.
+        """
+        return self._request('GET', f'/api/days/{date}')
+    
+    def create_or_update_day(self, date: str, target_pomos: int = 0, finished_pomos: int = 0,
+                            start_time: str = None, end_time: str = None, comment: str = "",
+                            day_rating: int = None, main_distraction: str = "",
+                            reflection_notes: str = "") -> Optional[Dict]:
+        """
+        Create or update a day
+        
+        Args:
+            date: Date in YYYY-MM-DD format
+            target_pomos: Target number of pomodoros
+            finished_pomos: Finished number of pomodoros
+            start_time: Start time (ISO format)
+            end_time: End time (ISO format)
+            comment: Day comment
+            day_rating: 1-5 star rating
+            main_distraction: Main distraction text
+            reflection_notes: End-of-day reflection notes
+            
+        Returns:
+            Created/updated day data
+        """
+        data = {
+            'date': date,
+            'target_pomos': target_pomos,
+            'finished_pomos': finished_pomos,
+            'comment': comment,
+            'main_distraction': main_distraction,
+            'reflection_notes': reflection_notes,
+        }
+        if start_time:
+            data['start_time'] = start_time
+        if end_time:
+            data['end_time'] = end_time
+        if day_rating is not None:
+            data['day_rating'] = day_rating
+            
+        return self._request('POST', '/api/days', json=data)
+    
+    def update_day_reflection(self, day_id: int, day_rating: int, 
+                             main_distraction: str = "", reflection_notes: str = "") -> Optional[Dict]:
+        """
+        Update end-of-day reflection
+        
+        Args:
+            day_id: Day ID
+            day_rating: 1-5 star rating
+            main_distraction: Main distraction text
+            reflection_notes: Reflection notes
+            
+        Returns:
+            Updated day data
+        """
+        data = {
+            'day_rating': day_rating,
+            'main_distraction': main_distraction,
+            'reflection_notes': reflection_notes,
+        }
+        return self._request('PUT', f'/api/days/{day_id}/reflection', json=data)
+    
+    # Daily Task methods
+    def get_daily_tasks(self, day_id: int) -> Optional[List[Dict]]:
+        """
+        Get all daily tasks for a day
+        
+        Args:
+            day_id: Day ID
+            
+        Returns:
+            List of daily tasks with planning and execution data
+        """
+        return self._request('GET', f'/api/days/{day_id}/tasks')
+    
+    def create_daily_task(self, day_id: int, task_name: str, planned_pomodoros: int = 0,
+                         plan_priority: int = None, added_mid_day: bool = False,
+                         reason_added: str = "") -> Optional[Dict]:
+        """
+        Create a daily task
+        
+        Args:
+            day_id: Day ID
+            task_name: Task name
+            planned_pomodoros: Planned number of pomodoros
+            plan_priority: Priority (1st, 2nd, 3rd...)
+            added_mid_day: Whether added mid-day (vs planned)
+            reason_added: Reason for mid-day addition (category | details)
+            
+        Returns:
+            Created daily task data
+        """
+        data = {
+            'task_name': task_name,
+            'planned_pomodoros': planned_pomodoros,
+            'added_mid_day': added_mid_day,
+            'reason_added': reason_added,
+        }
+        if plan_priority is not None:
+            data['plan_priority'] = plan_priority
+            
+        return self._request('POST', f'/api/days/{day_id}/tasks', json=data)
+    
+    def update_daily_task(self, task_id: int, task_name: str = None, 
+                         planned_pomodoros: int = None, pomodoros_spent: int = None,
+                         completed: bool = None, completed_at: str = None) -> Optional[Dict]:
+        """
+        Update a daily task
+        
+        Args:
+            task_id: Daily task ID
+            task_name: Task name
+            planned_pomodoros: Planned pomodoros
+            pomodoros_spent: Actual pomodoros spent
+            completed: Completion status
+            completed_at: Completion time (ISO format)
+            
+        Returns:
+            Updated daily task data
+        """
+        data = {}
+        if task_name is not None:
+            data['task_name'] = task_name
+        if planned_pomodoros is not None:
+            data['planned_pomodoros'] = planned_pomodoros
+        if pomodoros_spent is not None:
+            data['pomodoros_spent'] = pomodoros_spent
+        if completed is not None:
+            data['completed'] = completed
+        if completed_at is not None:
+            data['completed_at'] = completed_at
+            
+        return self._request('PUT', f'/api/daily-tasks/{task_id}', json=data)
+    
+    def delete_daily_task(self, task_id: int) -> bool:
+        """
+        Delete a daily task
+        
+        Args:
+            task_id: Daily task ID
+            
+        Returns:
+            True if deleted successfully
+        """
+        result = self._request('DELETE', f'/api/daily-tasks/{task_id}')
+        return result is not None
+    
+    # Enhanced Pomodoro methods
+    def create_pomodoro(self, day_id: int, start_time: str, duration_sec: int,
+                       aborted: bool = False, end_time: str = None,
+                       focus_score: int = None, reason: str = "", note: str = "",
+                       task: str = "", context_switch: bool = False) -> Optional[Dict]:
+        """
+        Create an enhanced pomodoro with rich tracking data
+        
+        Args:
+            day_id: Day ID
+            start_time: Start time (ISO format)
+            duration_sec: Duration in seconds
+            aborted: Whether aborted
+            end_time: End time (ISO format)
+            focus_score: Focus score 1-5
+            reason: Reason (for abort or low focus)
+            note: Optional note
+            task: Task name
+            context_switch: Whether a context switch occurred
+            
+        Returns:
+            Created pomodoro data
+        """
+        data = {
+            'day_id': day_id,
+            'start_time': start_time,
+            'duration_sec': duration_sec,
+            'aborted': aborted,
+            'reason': reason,
+            'note': note,
+            'task': task,
+            'context_switch': context_switch,
+        }
+        if end_time:
+            data['end_time'] = end_time
+        if focus_score is not None:
+            data['focus_score'] = focus_score
+            
+        return self._request('POST', '/api/pomodoros', json=data)
 
 
 # Example usage
