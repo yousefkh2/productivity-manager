@@ -267,10 +267,20 @@ function App() {
               {/* Actions */}
               <button
                 onClick={() => setShowDailyIntent(true)}
-                className="btn-secondary px-4 py-2 text-sm"
+                disabled={tasks.length > 0 || (dayData?.target_pomos > 0)}
+                className={`px-4 py-2 text-sm transition-all ${
+                  tasks.length > 0 || (dayData?.target_pomos > 0)
+                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+                    : 'btn-secondary hover:bg-white/20'
+                }`}
+                title={
+                  tasks.length > 0 || (dayData?.target_pomos > 0)
+                    ? 'Day already planned. Add tasks manually if needed.'
+                    : 'Plan your day and add tasks'
+                }
               >
                 <Calendar size={16} className="inline mr-2" />
-                Plan Day
+                {tasks.length > 0 || (dayData?.target_pomos > 0) ? 'Day Planned ✓' : 'Plan Day'}
               </button>
               
               <button

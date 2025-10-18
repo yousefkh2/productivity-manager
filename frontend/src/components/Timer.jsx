@@ -7,6 +7,7 @@ import PomodoroReview from './PomodoroReview';
 /**
  * Circular Progress Timer Component
  * 25 minutes Pomodoro with smooth animations
+ * Side button icons: 36px (large and visible)
  */
 export default function Timer({ onComplete, taskId, selectedTask }) {
   // TESTING MODE: 10 seconds for focus, 5 seconds for break
@@ -312,12 +313,12 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
         >
           {isRunning ? (
             <>
-              <Pause size={20} />
+              <Pause size={24} />
               Pause
             </>
           ) : (
             <>
-              <Play size={20} />
+              <Play size={24} />
               Start
             </>
           )}
@@ -327,32 +328,32 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={resetTimer}
-          className="btn-secondary w-14 h-14 flex items-center justify-center"
+          className="w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg transition-all p-0"
           title="Reset Timer"
         >
-          <RotateCcw size={20} />
+          <RotateCcw size={24} strokeWidth={2} />
         </motion.button>
 
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={switchMode}
-          className="btn-secondary w-14 h-14 flex items-center justify-center"
+          className="w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg transition-all p-0"
           title="Switch Mode"
         >
-          <Coffee size={20} />
+          <Coffee size={24} strokeWidth={2} />
         </motion.button>
 
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handlePipToggle}
-          className={`w-14 h-14 flex items-center justify-center ${
-            isPipActive ? 'btn-primary' : 'btn-secondary'
+          className={`w-14 h-14 flex items-center justify-center border border-white/10 rounded-lg transition-all p-0 ${
+            isPipActive ? 'bg-time-red hover:bg-time-red/90' : 'bg-white/10 hover:bg-white/20'
           }`}
           title={isPipActive ? 'Exit Picture-in-Picture' : 'Enter Picture-in-Picture'}
         >
-          {isPipActive ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+          {isPipActive ? <Minimize2 size={24} strokeWidth={2} /> : <Maximize2 size={24} strokeWidth={2} />}
         </motion.button>
 
         {/* PiP Layout Settings */}
@@ -361,10 +362,10 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowLayoutMenu(!showLayoutMenu)}
-            className="btn-secondary w-14 h-14 flex items-center justify-center"
+            className="w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg transition-all p-0"
             title="PiP Layout Settings"
           >
-            <Settings size={20} />
+            <Settings size={24} strokeWidth={2} />
           </motion.button>
 
           {/* Layout Selection Menu */}
