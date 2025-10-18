@@ -1,0 +1,16 @@
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/preflight" layer(base);
+@import "tailwindcss/utilities" layer(utilities);
+
+@theme {
+  --color-focus-black: #0a0a0a;
+  --color-focus-gray: #1a1a1a;
+  --color-focus-border: #2a2a2a;
+  --color-time-red: #ef4444;
+  --color-focus-green: #22c55e;
+  --color-plan-blue: #3b82f6;
+  --color-insight-purple: #a855f7;
+  
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}

@@ -409,14 +409,15 @@ func getDay(w http.ResponseWriter, r *http.Request) {
 	var day Day
 	var startTime, endTime sql.NullTime
 	var dayRating sql.NullInt64
+	var mainDistraction, reflectionNotes, comment sql.NullString
 
 	err := db.QueryRow(`
 		SELECT id, date, target_pomos, finished_pomos, start_time, end_time, 
 		       comment, day_rating, main_distraction, reflection_notes
 		FROM day WHERE date = ?
 	`, date).Scan(&day.ID, &day.Date, &day.TargetPomos, &day.FinishedPomos,
-		&startTime, &endTime, &day.Comment, &dayRating,
-		&day.MainDistraction, &day.ReflectionNotes)
+		&startTime, &endTime, &comment, &dayRating,
+		&mainDistraction, &reflectionNotes)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, "Day not found", http.StatusNotFound)
@@ -436,6 +437,15 @@ func getDay(w http.ResponseWriter, r *http.Request) {
 	if dayRating.Valid {
 		rating := int(dayRating.Int64)
 		day.DayRating = &rating
+	}
+	if comment.Valid {
+		day.Comment = comment.String
+	}
+	if mainDistraction.Valid {
+		day.MainDistraction = mainDistraction.String
+	}
+	if reflectionNotes.Valid {
+		day.ReflectionNotes = reflectionNotes.String
 	}
 
 	w.Header().Set("Content-Type", "application/json")
