@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, RotateCcw, Coffee } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Maximize2, Minimize2 } from 'lucide-react';
+import PipTimer from './PipTimer';
 
 /**
  * Circular Progress Timer Component
@@ -10,7 +11,9 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
   const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes in seconds
   const [isRunning, setIsRunning] = useState(false);
   const [mode, setMode] = useState('focus'); // 'focus' | 'break'
+  const [isPipActive, setIsPipActive] = useState(false);
   const intervalRef = useRef(null);
+  const pipTimerRef = useRef(null);
 
   const totalTime = mode === 'focus' ? 25 * 60 : 5 * 60;
   const progress = ((totalTime - timeLeft) / totalTime) * 100;
@@ -39,11 +42,26 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
   const handleComplete = () => {
     setIsRunning(false);
     
-    // Play notification sound (browser notification API)
+    // Play notification sound and show notification
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Pomodoro Complete! 🍅', {
-        body: mode === 'focus' ? 'Great work! Time for a break.' : 'Break over! Ready to focus?',
+      const notification = new Notification('Pomodoro Complete! 🍅', {
+        body: mode === 'focus' 
+          ? `Great work on "${selectedTask?.task_name || 'your task'}"! Time for a break.` 
+          : 'Break over! Ready to focus?',
+        icon: '/vite.svg',
+        badge: '/vite.svg',
+        tag: 'pomodoro-timer',
+        requireInteraction: true, // Notification stays until user dismisses
       });
+
+      // Play a sound (browser beep)
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    } else if ('Notification' in window) {
+      // Try to request permission if not yet granted
+      Notification.requestPermission();
     }
 
     if (mode === 'focus' && onComplete) {
@@ -91,6 +109,14 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handlePipToggle = () => {
+    // Access the PipTimer's toggle function
+    const pipButton = document.querySelector('[data-pip-toggle]');
+    if (pipButton && pipButton.__pipToggle) {
+      pipButton.__pipToggle();
+    }
   };
 
   const circumference = 2 * Math.PI * 140; // radius = 140
@@ -202,6 +228,7 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
           whileTap={{ scale: 0.95 }}
           onClick={resetTimer}
           className="btn-secondary w-14 h-14 flex items-center justify-center"
+          title="Reset Timer"
         >
           <RotateCcw size={20} />
         </motion.button>
@@ -211,8 +238,21 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
           whileTap={{ scale: 0.95 }}
           onClick={switchMode}
           className="btn-secondary w-14 h-14 flex items-center justify-center"
+          title="Switch Mode"
         >
           <Coffee size={20} />
+        </motion.button>
+
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handlePipToggle}
+          className={`w-14 h-14 flex items-center justify-center ${
+            isPipActive ? 'btn-primary' : 'btn-secondary'
+          }`}
+          title={isPipActive ? 'Exit Picture-in-Picture' : 'Enter Picture-in-Picture'}
+        >
+          {isPipActive ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
         </motion.button>
       </div>
 
@@ -234,6 +274,16 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
           'Press START when ready to begin.'
         )}
       </motion.p>
+
+      {/* Picture-in-Picture Component */}
+      <PipTimer
+        timeLeft={timeLeft}
+        isRunning={isRunning}
+        mode={mode}
+        selectedTask={selectedTask}
+        isPipActive={isPipActive}
+        onPipToggle={setIsPipActive}
+      />
     </div>
   );
 }

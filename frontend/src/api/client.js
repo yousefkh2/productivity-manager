@@ -27,7 +27,19 @@ class ApiClient {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      return await response.json();
+      // Handle no content responses (like DELETE)
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return null;
+      }
+
+      // Check if response has content
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json();
+      }
+
+      // Return null for non-JSON responses
+      return null;
     } catch (error) {
       console.error(`API Error [${endpoint}]:`, error);
       throw error;
