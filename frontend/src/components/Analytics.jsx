@@ -55,7 +55,7 @@ export default function Analytics({ currentDate }) {
 
   const calculateStats = (data) => {
     if (!data || data.length === 0) {
-      setStats({ total: 0, avgFocusScore: 0, totalMinutes: 0, topReason: '' });
+      setStats({ total: 0, avgFocusScore: 0, totalMinutes: 0, topReason: '', avgPauses: 0 });
       return;
     }
 
@@ -64,6 +64,10 @@ export default function Analytics({ currentDate }) {
     const avgFocusScore = data
       .filter(p => p.focus_score)
       .reduce((sum, p) => sum + p.focus_score, 0) / data.filter(p => p.focus_score).length || 0;
+
+    // Calculate average pauses
+    const totalPauses = data.reduce((sum, p) => sum + (p.pause_count || 0), 0);
+    const avgPauses = (totalPauses / total).toFixed(1);
 
     // Find most common reason
     const reasons = data.filter(p => p.reason).map(p => p.reason);
@@ -78,6 +82,7 @@ export default function Analytics({ currentDate }) {
       avgFocusScore: avgFocusScore.toFixed(1),
       totalMinutes: Math.round(totalMinutes),
       topReason,
+      avgPauses,
     });
   };
 
@@ -201,12 +206,11 @@ export default function Analytics({ currentDate }) {
           className="glass rounded-xl p-6"
         >
           <div className="flex items-center gap-3 mb-2">
-            <TrendingUp className="text-purple-400" size={24} />
-            <span className="text-gray-400 text-sm">Top Reason</span>
+            <span className="text-2xl">⏸️</span>
+            <span className="text-gray-400 text-sm">Avg Pauses</span>
           </div>
-          <div className="text-xl font-bold truncate">
-            {stats.topReason ? `${getReasonEmoji(stats.topReason)} ${stats.topReason}` : 'N/A'}
-          </div>
+          <div className="text-3xl font-bold">{stats.avgPauses}</div>
+          <div className="text-xs text-gray-500 mt-1">per session</div>
         </motion.div>
       </div>
 
@@ -244,8 +248,16 @@ export default function Analytics({ currentDate }) {
                       )}
                     </div>
                     
-                    <div className="text-sm text-gray-400 mb-2">
-                      {formatDate(pomo.start_time)} • {Math.round(pomo.duration_sec / 60)} min
+                    <div className="text-sm text-gray-400 mb-2 flex items-center gap-3">
+                      <span>{formatDate(pomo.start_time)}</span>
+                      <span>•</span>
+                      <span>{Math.round(pomo.duration_sec / 60)} min</span>
+                      {pomo.pause_count > 0 && (
+                        <>
+                          <span>•</span>
+                          <span className="text-yellow-400">⏸️ Paused {pomo.pause_count}x</span>
+                        </>
+                      )}
                     </div>
 
                     {pomo.reason && (

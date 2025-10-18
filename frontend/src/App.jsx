@@ -123,7 +123,7 @@ function App() {
     }
   };
 
-  const handlePomodoroComplete = async (taskId, reviewData = null, actualDuration = 1500) => {
+  const handlePomodoroComplete = async (taskId, reviewData = null, actualDuration = 1500, pauseCount = 0) => {
     if (!taskId) return;
 
     try {
@@ -143,7 +143,7 @@ function App() {
         const durationSec = actualDuration;
         const startTime = new Date(now.getTime() - durationSec * 1000);
         
-        console.log('Saving pomodoro review:', reviewData, 'Duration:', durationSec, 'seconds');
+        console.log('Saving pomodoro review:', reviewData, 'Duration:', durationSec, 'seconds', 'Pauses:', pauseCount);
         
         await api.createPomodoro({
           day_id: dayData.id,
@@ -156,9 +156,10 @@ function App() {
           note: reviewData.note || '',
           task: task?.task_name || 'Unknown Task',
           context_switch: false,
+          pause_count: pauseCount,
         });
         
-        console.log('Pomodoro review saved successfully - Duration:', durationSec, 'sec');
+        console.log('Pomodoro review saved successfully - Duration:', durationSec, 'sec, Pauses:', pauseCount);
       }
     } catch (error) {
       console.error('Failed to save pomodoro:', error);

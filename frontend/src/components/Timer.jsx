@@ -10,23 +10,55 @@ import PomodoroReview from './PomodoroReview';
  */
 export default function Timer({ onComplete, taskId, selectedTask }) {
   // TESTING MODE: 10 seconds for focus, 5 seconds for break
-  const FOCUS_TIME = 10; // Change to 25 * 60 for production (25 minutes)
-  const BREAK_TIME = 5;  // Change to 5 * 60 for production (5 minutes)
+  const FOCUS_TIME = 25 * 60; // Change to 25 * 60 for production (25 minutes)
+  const BREAK_TIME = 5 * 60;  // Change to 5 * 60 for production (5 minutes)
   
-  const [timeLeft, setTimeLeft] = useState(FOCUS_TIME); // 10 seconds for testing
-  const [isRunning, setIsRunning] = useState(false);
-  const [mode, setMode] = useState('focus'); // 'focus' | 'break'
+  // Load persisted timer state from localStorage
+  const loadTimerState = () => {
+    try {
+      const saved = localStorage.getItem('timerState');
+      if (saved) {
+        const state = JSON.parse(saved);
+        // Only restore if the state is recent (within last 2 hours)
+        const stateAge = Date.now() - (state.timestamp || 0);
+        if (stateAge < 2 * 60 * 60 * 1000) {
+          return state;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load timer state:', e);
+    }
+    return null;
+  };
+
+  const savedState = loadTimerState();
+
+  const [timeLeft, setTimeLeft] = useState(savedState?.timeLeft || FOCUS_TIME);
+  const [isRunning, setIsRunning] = useState(false); // Always start paused after tab switch
+  const [mode, setMode] = useState(savedState?.mode || 'focus');
   const [isPipActive, setIsPipActive] = useState(false);
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const [currentLayout, setCurrentLayout] = useState(() => {
     return localStorage.getItem('pipLayout') || 'default';
   });
   const [showReview, setShowReview] = useState(false);
+  const [pauseCount, setPauseCount] = useState(savedState?.pauseCount || 0);
   const intervalRef = useRef(null);
   const pipTimerRef = useRef(null);
 
   const totalTime = mode === 'focus' ? FOCUS_TIME : BREAK_TIME;
   const progress = ((totalTime - timeLeft) / totalTime) * 100;
+
+  // Persist timer state to localStorage whenever it changes
+  useEffect(() => {
+    const timerState = {
+      timeLeft,
+      mode,
+      pauseCount,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem('timerState', JSON.stringify(timerState));
+  }, [timeLeft, mode, pauseCount]);
 
   // Debug: Log when showReview changes
   useEffect(() => {
@@ -84,29 +116,35 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
       setShowReview(true);
       setMode('break');
       setTimeLeft(BREAK_TIME);
+      // Don't reset pauseCount yet - we'll reset it after review is saved
     } else {
       // Break complete - just switch back to focus
       setMode('focus');
       setTimeLeft(FOCUS_TIME);
+      setPauseCount(0); // Reset pause count for next focus session
     }
   };
 
   const handleReviewSave = async (reviewData) => {
-    console.log('Review saved:', reviewData);
-    // Pass review data AND actual duration to parent (will be saved in App.jsx)
+    console.log('Review saved:', reviewData, 'Pauses:', pauseCount);
+    // Pass review data, actual duration, AND pause count to parent
     if (onComplete) {
-      await onComplete(taskId, reviewData, FOCUS_TIME);
+      await onComplete(taskId, reviewData, FOCUS_TIME, pauseCount);
     }
     setShowReview(false);
+    setPauseCount(0); // Reset pause count after saving
+    localStorage.removeItem('timerState'); // Clear persisted state after completing
   };
 
   const handleReviewSkip = () => {
-    console.log('Review skipped');
-    // Still increment the task's pomodoro count (no review data, but pass duration)
+    console.log('Review skipped, Pauses:', pauseCount);
+    // Still increment the task's pomodoro count (no review data, but pass duration and pauses)
     if (onComplete) {
-      onComplete(taskId, null, FOCUS_TIME);
+      onComplete(taskId, null, FOCUS_TIME, pauseCount);
     }
     setShowReview(false);
+    setPauseCount(0); // Reset pause count
+    localStorage.removeItem('timerState'); // Clear persisted state
   };
 
   const toggleTimer = () => {
@@ -114,6 +152,12 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
     if (!isRunning && mode === 'focus' && !taskId) {
       alert('⚠️ Please select a task before starting a Pomodoro session.');
       return;
+    }
+
+    // If we're pausing (timer is running and we're stopping it)
+    if (isRunning && mode === 'focus') {
+      setPauseCount(prev => prev + 1);
+      console.log('Paused! Total pauses:', pauseCount + 1);
     }
 
     setIsRunning(!isRunning);
@@ -127,6 +171,9 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
   const resetTimer = () => {
     setIsRunning(false);
     setTimeLeft(mode === 'focus' ? FOCUS_TIME : BREAK_TIME);
+    setPauseCount(0); // Reset pause count on reset
+    // Clear persisted state
+    localStorage.removeItem('timerState');
   };
 
   const switchMode = () => {
@@ -134,6 +181,9 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
     const newMode = mode === 'focus' ? 'break' : 'focus';
     setMode(newMode);
     setTimeLeft(newMode === 'focus' ? FOCUS_TIME : BREAK_TIME);
+    setPauseCount(0); // Reset pause count when manually switching modes
+    // Clear persisted state since we're starting fresh
+    localStorage.removeItem('timerState');
   };
 
   const formatTime = (seconds) => {
@@ -163,11 +213,12 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
 
   const circumference = 2 * Math.PI * 140; // radius = 140
 
+  // Note: Browsers enforce minimum PiP dimensions (~100px height minimum)
   const LAYOUT_OPTIONS = [
-    { id: 'default', name: 'Default (Square)', desc: '640×480 - Traditional layout' },
-    { id: 'taskbar', name: 'Taskbar Strip', desc: '800×120 - Perfect for taskbar' },
-    { id: 'compact', name: 'Compact', desc: '400×300 - Smaller window' },
-    { id: 'minimal', name: 'Minimal Strip', desc: '600×100 - Ultra-thin bar' },
+    { id: 'default', name: 'Default (Square)', desc: '640×480 - Full details' },
+    { id: 'taskbar', name: 'Taskbar Strip', desc: '800×120 - Horizontal bar' },
+    { id: 'compact', name: 'Compact', desc: '400×300 - Small square' },
+    { id: 'minimal', name: 'Minimal', desc: '600×100 - Ultra-thin bar' },
   ];
 
   return (

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 
 // Layout configurations
+// Note: Browsers enforce minimum PiP dimensions (typically ~100px height minimum)
 const LAYOUTS = {
-  default: { width: 640, height: 480, name: 'Default (Square)' },
-  taskbar: { width: 800, height: 120, name: 'Taskbar (Wide Strip)' },
-  compact: { width: 400, height: 300, name: 'Compact' },
-  minimal: { width: 600, height: 100, name: 'Minimal Strip' },
+  default: { width: 640, height: 480, name: 'Default (Square)', desc: 'Full details' },
+  taskbar: { width: 800, height: 120, name: 'Taskbar Strip', desc: 'Horizontal bar' },
+  compact: { width: 400, height: 300, name: 'Compact', desc: 'Small square' },
+  minimal: { width: 600, height: 100, name: 'Minimal', desc: 'Ultra-thin bar' },
 };
 
 /**

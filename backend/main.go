@@ -74,6 +74,7 @@ type PomodoroDetail struct {
 	Note          string     `json:"note"`
 	Task          string     `json:"task"`
 	ContextSwitch bool       `json:"context_switch"`
+	PauseCount    int        `json:"pause_count"` // Number of times paused during session
 }
 
 type Statistics struct {
@@ -671,10 +672,10 @@ func createPomodoro(w http.ResponseWriter, r *http.Request) {
 
 	result, err := db.Exec(`
 		INSERT INTO pomo (day_id, start_time, end_time, duration_sec, aborted, 
-		                 focus_score, reason, note, task, context_switch)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		                 focus_score, reason, note, task, context_switch, pause_count)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, pomo.DayID, pomo.StartTime, pomo.EndTime, pomo.DurationSec, pomo.Aborted,
-		pomo.FocusScore, pomo.Reason, pomo.Note, pomo.Task, pomo.ContextSwitch)
+		pomo.FocusScore, pomo.Reason, pomo.Note, pomo.Task, pomo.ContextSwitch, pomo.PauseCount)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -695,7 +696,7 @@ func getPomodoros(w http.ResponseWriter, r *http.Request) {
 	endDate := r.URL.Query().Get("end_date")
 
 	query := `SELECT id, day_id, start_time, end_time, duration_sec, aborted, 
-	                 focus_score, reason, note, task, context_switch 
+	                 focus_score, reason, note, task, context_switch, pause_count 
 	          FROM pomo WHERE 1=1`
 	args := []interface{}{}
 
@@ -722,7 +723,7 @@ func getPomodoros(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var p PomodoroDetail
 		err := rows.Scan(&p.ID, &p.DayID, &p.StartTime, &p.EndTime, &p.DurationSec,
-			&p.Aborted, &p.FocusScore, &p.Reason, &p.Note, &p.Task, &p.ContextSwitch)
+			&p.Aborted, &p.FocusScore, &p.Reason, &p.Note, &p.Task, &p.ContextSwitch, &p.PauseCount)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
