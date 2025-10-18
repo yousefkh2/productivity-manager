@@ -293,16 +293,181 @@ function App() {
             </div>
           </div>
 
-          {/* Planned Pomodoros Display */}
+          {/* Enhanced Daily Progress Banner */}
           {dayData?.target_pomos > 0 && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-4 glass rounded-xl p-4 flex items-center justify-between"
+              className="mt-4 glass rounded-xl p-6"
             >
-              <div className="text-sm text-gray-400">Today's Plan:</div>
-              <div className="text-lg font-bold text-plan-blue">
-                {dayData.target_pomos} Pomodoros
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-sm text-gray-400">Today's Plan</div>
+                  <div className="text-2xl font-bold text-plan-blue">
+                    {dayData.target_pomos} Pomodoros
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-400">Estimated Finish</div>
+                  <div className="text-xl font-semibold text-white">
+                    {(() => {
+                      // Calculate finish time based on target pomodoros
+                      const now = new Date();
+                      const pomos = dayData.target_pomos;
+                      
+                      // Each pomodoro: 25min work + 5min break = 30min
+                      // Every 4 pomodoros: add 15min long break instead of 5min
+                      const shortBreaks = Math.floor((pomos - 1) / 4) * 3 + (pomos - 1) % 4;
+                      const longBreaks = Math.floor((pomos - 1) / 4);
+                      const lunchBreak = pomos >= 8 ? 30 : 0;
+                      
+                      const totalMinutes = (pomos * 25) + (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
+                      
+                      const finishTime = new Date(now);
+                      finishTime.setMinutes(now.getMinutes() + totalMinutes);
+                      
+                      return finishTime.toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        hour12: true 
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Dual Progress Visualization */}
+              <div className="space-y-3">
+                {/* Time Progress (background - shows time passing) */}
+                <div>
+                  <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                    <span>Time Progress</span>
+                    <span>
+                      {(() => {
+                        const now = new Date();
+                        const startOfDay = new Date(now);
+                        startOfDay.setHours(9, 0, 0, 0); // Assume 9 AM start
+                        
+                        const pomos = dayData.target_pomos;
+                        const shortBreaks = Math.floor((pomos - 1) / 4) * 3 + (pomos - 1) % 4;
+                        const longBreaks = Math.floor((pomos - 1) / 4);
+                        const lunchBreak = pomos >= 8 ? 30 : 0;
+                        const totalMinutes = (pomos * 25) + (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
+                        
+                        const elapsed = (now - startOfDay) / (1000 * 60); // minutes elapsed
+                        const timeProgress = Math.min(100, Math.max(0, (elapsed / totalMinutes) * 100));
+                        
+                        return `${Math.round(timeProgress)}%`;
+                      })()}
+                    </span>
+                  </div>
+                  <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ 
+                        width: `${(() => {
+                          const now = new Date();
+                          const startOfDay = new Date(now);
+                          startOfDay.setHours(9, 0, 0, 0);
+                          
+                          const pomos = dayData.target_pomos;
+                          const shortBreaks = Math.floor((pomos - 1) / 4) * 3 + (pomos - 1) % 4;
+                          const longBreaks = Math.floor((pomos - 1) / 4);
+                          const lunchBreak = pomos >= 8 ? 30 : 0;
+                          const totalMinutes = (pomos * 25) + (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
+                          
+                          const elapsed = (now - startOfDay) / (1000 * 60);
+                          const timeProgress = Math.min(100, Math.max(0, (elapsed / totalMinutes) * 100));
+                          
+                          return timeProgress;
+                        })()}%` 
+                      }}
+                      transition={{ duration: 0.5 }}
+                      className="h-full bg-gradient-to-r from-gray-600 to-gray-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Work Progress (foreground - shows pomodoros completed) */}
+                <div>
+                  <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                    <span>Work Progress</span>
+                    <span>
+                      {tasks.reduce((sum, t) => sum + (t.pomodoros_spent || 0), 0)} / {dayData.target_pomos} Pomodoros
+                    </span>
+                  </div>
+                  <div className="h-3 bg-gray-800 rounded-full overflow-hidden relative">
+                    {/* Pomodoro progress */}
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ 
+                        width: `${((tasks.reduce((sum, t) => sum + (t.pomodoros_spent || 0), 0) / dayData.target_pomos) * 100)}%` 
+                      }}
+                      transition={{ duration: 0.5 }}
+                      className={`h-full ${
+                        (() => {
+                          const completedPomos = tasks.reduce((sum, t) => sum + (t.pomodoros_spent || 0), 0);
+                          const targetPomos = dayData.target_pomos;
+                          const now = new Date();
+                          const startOfDay = new Date(now);
+                          startOfDay.setHours(9, 0, 0, 0);
+                          
+                          const pomos = targetPomos;
+                          const shortBreaks = Math.floor((pomos - 1) / 4) * 3 + (pomos - 1) % 4;
+                          const longBreaks = Math.floor((pomos - 1) / 4);
+                          const lunchBreak = pomos >= 8 ? 30 : 0;
+                          const totalMinutes = (pomos * 25) + (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
+                          
+                          const elapsed = (now - startOfDay) / (1000 * 60);
+                          const timeProgress = Math.min(100, Math.max(0, (elapsed / totalMinutes) * 100));
+                          const workProgress = (completedPomos / targetPomos) * 100;
+                          
+                          // If work progress is keeping up with or ahead of time, show green
+                          // If falling behind, show yellow or red
+                          if (workProgress >= timeProgress || timeProgress < 5) {
+                            return 'bg-gradient-to-r from-focus-green to-green-400';
+                          } else if (workProgress >= timeProgress * 0.75) {
+                            return 'bg-gradient-to-r from-yellow-500 to-yellow-400';
+                          } else {
+                            return 'bg-gradient-to-r from-time-red to-red-400';
+                          }
+                        })()
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Status Message */}
+                <div className="text-xs text-center mt-2">
+                  {(() => {
+                    const completedPomos = tasks.reduce((sum, t) => sum + (t.pomodoros_spent || 0), 0);
+                    const targetPomos = dayData.target_pomos;
+                    const now = new Date();
+                    const startOfDay = new Date(now);
+                    startOfDay.setHours(9, 0, 0, 0);
+                    
+                    const pomos = targetPomos;
+                    const shortBreaks = Math.floor((pomos - 1) / 4) * 3 + (pomos - 1) % 4;
+                    const longBreaks = Math.floor((pomos - 1) / 4);
+                    const lunchBreak = pomos >= 8 ? 30 : 0;
+                    const totalMinutes = (pomos * 25) + (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
+                    
+                    const elapsed = (now - startOfDay) / (1000 * 60);
+                    const timeProgress = Math.min(100, Math.max(0, (elapsed / totalMinutes) * 100));
+                    const workProgress = (completedPomos / targetPomos) * 100;
+                    
+                    if (completedPomos === 0 && timeProgress > 10) {
+                      return <span className="text-time-red font-semibold">⚠️ Time is passing! Start working to stay on track.</span>;
+                    } else if (workProgress >= timeProgress || timeProgress < 5) {
+                      return <span className="text-focus-green">✓ You're on pace or ahead of schedule!</span>;
+                    } else if (workProgress >= timeProgress * 0.75) {
+                      return <span className="text-yellow-400">⏱️ Slightly behind schedule, but recoverable.</span>;
+                    } else {
+                      return <span className="text-time-red">⚠️ Falling behind! Focus up to get back on track.</span>;
+                    }
+                  })()}
+                </div>
               </div>
             </motion.div>
           )}
