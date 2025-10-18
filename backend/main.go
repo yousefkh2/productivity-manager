@@ -688,6 +688,56 @@ func createPomodoro(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(pomo)
 }
 
+func getPomodoros(w http.ResponseWriter, r *http.Request) {
+	// Optional query parameters for filtering
+	dayID := r.URL.Query().Get("day_id")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+
+	query := `SELECT id, day_id, start_time, end_time, duration_sec, aborted, 
+	                 focus_score, reason, note, task, context_switch 
+	          FROM pomo WHERE 1=1`
+	args := []interface{}{}
+
+	if dayID != "" {
+		query += " AND day_id = ?"
+		args = append(args, dayID)
+	}
+
+	if startDate != "" && endDate != "" {
+		query += " AND DATE(start_time) BETWEEN ? AND ?"
+		args = append(args, startDate, endDate)
+	}
+
+	query += " ORDER BY start_time DESC"
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var pomodoros []PomodoroDetail
+	for rows.Next() {
+		var p PomodoroDetail
+		err := rows.Scan(&p.ID, &p.DayID, &p.StartTime, &p.EndTime, &p.DurationSec,
+			&p.Aborted, &p.FocusScore, &p.Reason, &p.Note, &p.Task, &p.ContextSwitch)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		pomodoros = append(pomodoros, p)
+	}
+
+	if pomodoros == nil {
+		pomodoros = []PomodoroDetail{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pomodoros)
+}
+
 func main() {
 	// Initialize database
 	if err := initDB(); err != nil {
@@ -724,6 +774,7 @@ func main() {
 	r.HandleFunc("/api/daily-tasks/{id}", deleteDailyTask).Methods("DELETE")
 	
 	// Enhanced pomodoro routes
+	r.HandleFunc("/api/pomodoros", getPomodoros).Methods("GET")
 	r.HandleFunc("/api/pomodoros", createPomodoro).Methods("POST")
 
 	// CORS

@@ -1,4 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+// Layout configurations
+const LAYOUTS = {
+  default: { width: 640, height: 480, name: 'Default (Square)' },
+  taskbar: { width: 800, height: 120, name: 'Taskbar (Wide Strip)' },
+  compact: { width: 400, height: 300, name: 'Compact' },
+  minimal: { width: 600, height: 100, name: 'Minimal Strip' },
+};
 
 /**
  * Picture-in-Picture Timer Component
@@ -16,6 +24,60 @@ export default function PipTimer({
   const videoRef = useRef(null);
   const pipWindowRef = useRef(null);
   const streamRef = useRef(null);
+  
+  // Load saved layout preference or default to 'default'
+  const [layout, setLayout] = useState(() => {
+    return localStorage.getItem('pipLayout') || 'default';
+  });
+
+  const currentLayout = LAYOUTS[layout];
+
+  // Save layout preference
+  const changeLayout = (newLayout) => {
+    setLayout(newLayout);
+    localStorage.setItem('pipLayout', newLayout);
+    
+    // If PiP is active, need to restart it with new dimensions
+    if (isPipActive) {
+      // Store that we need to reopen PiP
+      const shouldReopenPip = true;
+      
+      // Exit current PiP
+      if (document.pictureInPictureElement) {
+        document.exitPictureInPicture().then(() => {
+          // Recreate stream with new dimensions
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+          }
+          
+          // Reopen PiP after a brief delay
+          if (shouldReopenPip) {
+            setTimeout(() => {
+              const pipButton = document.querySelector('[data-pip-toggle]');
+              if (pipButton && pipButton.__pipToggle) {
+                pipButton.__pipToggle();
+              }
+            }, 300);
+          }
+        });
+      }
+    } else {
+      // Just recreate the stream if it exists
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    }
+  };
+
+  // Expose layout change function
+  useEffect(() => {
+    const pipButton = document.querySelector('[data-pip-toggle]');
+    if (pipButton) {
+      pipButton.__changeLayout = changeLayout;
+    }
+  }, []);
 
   // Check browser compatibility on mount
   useEffect(() => {
@@ -55,6 +117,16 @@ export default function PipTimer({
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
+    // Render based on layout
+    if (layout === 'taskbar' || layout === 'minimal') {
+      renderTaskbarLayout(ctx, width, height);
+    } else {
+      renderDefaultLayout(ctx, width, height);
+    }
+  }, [timeLeft, isRunning, mode, selectedTask, layout]);
+
+  // Default layout renderer (vertical)
+  const renderDefaultLayout = (ctx, width, height) => {
     // Mode indicator
     ctx.font = 'bold 24px system-ui';
     ctx.textAlign = 'center';
@@ -115,7 +187,8 @@ export default function PipTimer({
     }
 
     // Progress bar
-    const totalTime = mode === 'focus' ? 25 * 60 : 5 * 60;
+    // TESTING: Use 10 seconds for focus, 5 for break (change to 25*60 and 5*60 for production)
+    const totalTime = mode === 'focus' ? 10 : 5;
     const progress = (totalTime - timeLeft) / totalTime;
     const barWidth = width - 80;
     const barHeight = 8;
@@ -129,8 +202,77 @@ export default function PipTimer({
     // Progress bar
     ctx.fillStyle = mode === 'focus' ? '#EF4444' : '#10B981';
     ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+  };
 
-  }, [timeLeft, isRunning, mode, selectedTask]);
+  // Taskbar/Minimal layout renderer (horizontal)
+  const renderTaskbarLayout = (ctx, width, height) => {
+    const isMinimal = layout === 'minimal';
+    const padding = 20;
+    
+    // Timer on the left
+    const mins = Math.floor(timeLeft / 60);
+    const secs = timeLeft % 60;
+    const timeString = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    
+    ctx.font = `bold ${isMinimal ? '48' : '64'}px monospace`;
+    ctx.fillStyle = mode === 'focus' ? '#EF4444' : '#10B981';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(timeString, padding, height / 2);
+
+    // Mode emoji and task name in the center
+    const timerWidth = ctx.measureText(timeString).width;
+    const centerStartX = timerWidth + padding * 2;
+    
+    ctx.font = `${isMinimal ? '24' : '32'}px system-ui`;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+    
+    const modeEmoji = mode === 'focus' ? '🎯' : '☕';
+    const taskText = selectedTask && mode === 'focus' 
+      ? selectedTask.task_name 
+      : (mode === 'focus' ? 'Focus Mode' : 'Break Time');
+    
+    // Truncate if too long
+    const maxTaskWidth = width - centerStartX - padding * 2;
+    let displayText = `${modeEmoji} ${taskText}`;
+    let textWidth = ctx.measureText(displayText).width;
+    
+    while (textWidth > maxTaskWidth && displayText.length > 10) {
+      displayText = displayText.substring(0, displayText.length - 4) + '...';
+      textWidth = ctx.measureText(displayText).width;
+    }
+    
+    ctx.fillText(displayText, centerStartX, height / 2);
+
+    // Progress bar at the bottom
+    // TESTING: Use 10 seconds for focus, 5 for break (change to 25*60 and 5*60 for production)
+    const totalTime = mode === 'focus' ? 10 : 5;
+    const progress = (totalTime - timeLeft) / totalTime;
+    const barHeight = isMinimal ? 4 : 6;
+    const barY = height - barHeight - 5;
+
+    // Background bar
+    ctx.fillStyle = '#374151';
+    ctx.fillRect(0, barY, width, barHeight);
+
+    // Progress bar
+    ctx.fillStyle = mode === 'focus' ? '#EF4444' : '#10B981';
+    ctx.fillRect(0, barY, width * progress, barHeight);
+
+    // Pomodoro count (if applicable and not minimal)
+    if (!isMinimal && selectedTask && mode === 'focus') {
+      ctx.font = '14px system-ui';
+      ctx.fillStyle = '#6B7280';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(
+        `Pomo ${(selectedTask.pomodoros_spent || 0) + 1}/${selectedTask.planned_pomodoros || 1}`,
+        width - padding,
+        height - 15
+      );
+    }
+  };
 
   // Start/Stop PiP
   const togglePip = async () => {
@@ -215,8 +357,8 @@ export default function PipTimer({
       {/* Hidden canvas that renders the PiP content */}
       <canvas 
         ref={canvasRef}
-        width={640}
-        height={480}
+        width={currentLayout.width}
+        height={currentLayout.height}
         style={{ display: 'none' }}
       />
       
@@ -226,17 +368,20 @@ export default function PipTimer({
         muted
         playsInline
         preload="none"
-        width={640}
-        height={480}
+        width={currentLayout.width}
+        height={currentLayout.height}
         style={{ display: 'none' }}
       />
 
       {/* Expose toggle function via data attribute */}
       <button
         data-pip-toggle="true"
+        data-current-layout={layout}
         ref={(el) => {
           if (el) {
             el.__pipToggle = togglePip;
+            el.__changeLayout = changeLayout;
+            el.__currentLayout = layout;
           }
         }}
         style={{ display: 'none' }}

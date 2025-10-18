@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Cloud, CloudOff, Calendar, TrendingUp } from 'lucide-react';
+import { Cloud, CloudOff, Calendar, TrendingUp, BarChart3, Timer as TimerIcon } from 'lucide-react';
 import Timer from './components/Timer';
 import TaskList from './components/TaskList';
 import DailyIntent from './components/DailyIntent';
 import EndDayDialog from './components/EndDayDialog';
+import Analytics from './components/Analytics';
 import api from './api/client';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
   const [showEndDay, setShowEndDay] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('timer'); // 'timer' | 'analytics'
 
   // Load today's data on mount
   useEffect(() => {
@@ -121,7 +123,7 @@ function App() {
     }
   };
 
-  const handlePomodoroComplete = async (taskId) => {
+  const handlePomodoroComplete = async (taskId, reviewData = null, actualDuration = 1500) => {
     if (!taskId) return;
 
     try {
@@ -132,6 +134,31 @@ function App() {
           ...task,
           pomodoros_spent: (task.pomodoros_spent || 0) + 1,
         });
+      }
+
+      // Save review data if provided
+      if (reviewData && dayData?.id) {
+        const now = new Date();
+        // Use actual duration from timer (10 seconds in testing, 1500 in production)
+        const durationSec = actualDuration;
+        const startTime = new Date(now.getTime() - durationSec * 1000);
+        
+        console.log('Saving pomodoro review:', reviewData, 'Duration:', durationSec, 'seconds');
+        
+        await api.createPomodoro({
+          day_id: dayData.id,
+          start_time: startTime.toISOString(),
+          end_time: now.toISOString(),
+          duration_sec: durationSec,
+          aborted: false,
+          focus_score: reviewData.focus_score,
+          reason: reviewData.reason || '',
+          note: reviewData.note || '',
+          task: task?.task_name || 'Unknown Task',
+          context_switch: false,
+        });
+        
+        console.log('Pomodoro review saved successfully - Duration:', durationSec, 'sec');
       }
     } catch (error) {
       console.error('Failed to save pomodoro:', error);
@@ -268,33 +295,63 @@ function App() {
               </div>
             </motion.div>
           )}
+
+          {/* Tab Navigation */}
+          <div className="mt-6 flex gap-2 border-b border-focus-border">
+            <button
+              onClick={() => setActiveTab('timer')}
+              className={`px-6 py-3 flex items-center gap-2 transition-all ${
+                activeTab === 'timer'
+                  ? 'border-b-2 border-focus-blue text-focus-blue'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <TimerIcon size={20} />
+              <span>Timer</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-6 py-3 flex items-center gap-2 transition-all ${
+                activeTab === 'analytics'
+                  ? 'border-b-2 border-focus-blue text-focus-blue'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <BarChart3 size={20} />
+              <span>Analytics</span>
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left: Timer */}
-          <div className="flex items-center justify-center">
-            <Timer
-              onComplete={handlePomodoroComplete}
-              taskId={selectedTaskId}
-              selectedTask={tasks.find(t => t.id === selectedTaskId)}
-            />
-          </div>
+        {activeTab === 'timer' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left: Timer */}
+            <div className="flex items-center justify-center">
+              <Timer
+                onComplete={handlePomodoroComplete}
+                taskId={selectedTaskId}
+                selectedTask={tasks.find(t => t.id === selectedTaskId)}
+              />
+            </div>
 
-          {/* Right: Tasks */}
-          <div>
-            <TaskList
-              tasks={tasks}
-              selectedTaskId={selectedTaskId}
-              onAddTask={handleAddTask}
-              onUpdateTask={handleUpdateTask}
-              onDeleteTask={handleDeleteTask}
-              onSelectTask={setSelectedTaskId}
-            />
+            {/* Right: Tasks */}
+            <div>
+              <TaskList
+                tasks={tasks}
+                selectedTaskId={selectedTaskId}
+                onAddTask={handleAddTask}
+                onUpdateTask={handleUpdateTask}
+                onDeleteTask={handleDeleteTask}
+                onSelectTask={setSelectedTaskId}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <Analytics key={`analytics-${activeTab}`} currentDate={currentDate} />
+        )}
       </main>
 
       {/* Footer */}

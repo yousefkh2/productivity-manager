@@ -1,22 +1,37 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, RotateCcw, Coffee, Maximize2, Minimize2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Maximize2, Minimize2, Settings } from 'lucide-react';
 import PipTimer from './PipTimer';
+import PomodoroReview from './PomodoroReview';
 
 /**
  * Circular Progress Timer Component
  * 25 minutes Pomodoro with smooth animations
  */
 export default function Timer({ onComplete, taskId, selectedTask }) {
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes in seconds
+  // TESTING MODE: 10 seconds for focus, 5 seconds for break
+  const FOCUS_TIME = 10; // Change to 25 * 60 for production (25 minutes)
+  const BREAK_TIME = 5;  // Change to 5 * 60 for production (5 minutes)
+  
+  const [timeLeft, setTimeLeft] = useState(FOCUS_TIME); // 10 seconds for testing
   const [isRunning, setIsRunning] = useState(false);
   const [mode, setMode] = useState('focus'); // 'focus' | 'break'
   const [isPipActive, setIsPipActive] = useState(false);
+  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+  const [currentLayout, setCurrentLayout] = useState(() => {
+    return localStorage.getItem('pipLayout') || 'default';
+  });
+  const [showReview, setShowReview] = useState(false);
   const intervalRef = useRef(null);
   const pipTimerRef = useRef(null);
 
-  const totalTime = mode === 'focus' ? 25 * 60 : 5 * 60;
+  const totalTime = mode === 'focus' ? FOCUS_TIME : BREAK_TIME;
   const progress = ((totalTime - timeLeft) / totalTime) * 100;
+
+  // Debug: Log when showReview changes
+  useEffect(() => {
+    console.log('showReview state changed:', showReview);
+  }, [showReview]);
 
   // Timer logic
   useEffect(() => {
@@ -64,18 +79,34 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
       Notification.requestPermission();
     }
 
-    if (mode === 'focus' && onComplete) {
-      onComplete(taskId);
-    }
-
-    // Auto-switch mode
+    // Show review dialog for focus sessions (don't call onComplete yet)
     if (mode === 'focus') {
+      setShowReview(true);
       setMode('break');
-      setTimeLeft(5 * 60);
+      setTimeLeft(BREAK_TIME);
     } else {
+      // Break complete - just switch back to focus
       setMode('focus');
-      setTimeLeft(25 * 60);
+      setTimeLeft(FOCUS_TIME);
     }
+  };
+
+  const handleReviewSave = async (reviewData) => {
+    console.log('Review saved:', reviewData);
+    // Pass review data AND actual duration to parent (will be saved in App.jsx)
+    if (onComplete) {
+      await onComplete(taskId, reviewData, FOCUS_TIME);
+    }
+    setShowReview(false);
+  };
+
+  const handleReviewSkip = () => {
+    console.log('Review skipped');
+    // Still increment the task's pomodoro count (no review data, but pass duration)
+    if (onComplete) {
+      onComplete(taskId, null, FOCUS_TIME);
+    }
+    setShowReview(false);
   };
 
   const toggleTimer = () => {
@@ -95,14 +126,14 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
 
   const resetTimer = () => {
     setIsRunning(false);
-    setTimeLeft(mode === 'focus' ? 25 * 60 : 5 * 60);
+    setTimeLeft(mode === 'focus' ? FOCUS_TIME : BREAK_TIME);
   };
 
   const switchMode = () => {
     setIsRunning(false);
     const newMode = mode === 'focus' ? 'break' : 'focus';
     setMode(newMode);
-    setTimeLeft(newMode === 'focus' ? 25 * 60 : 5 * 60);
+    setTimeLeft(newMode === 'focus' ? FOCUS_TIME : BREAK_TIME);
   };
 
   const formatTime = (seconds) => {
@@ -119,7 +150,25 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
     }
   };
 
+  const handleLayoutChange = (newLayout) => {
+    setCurrentLayout(newLayout);
+    setShowLayoutMenu(false);
+    
+    // Access the PipTimer's layout change function
+    const pipButton = document.querySelector('[data-pip-toggle]');
+    if (pipButton && pipButton.__changeLayout) {
+      pipButton.__changeLayout(newLayout);
+    }
+  };
+
   const circumference = 2 * Math.PI * 140; // radius = 140
+
+  const LAYOUT_OPTIONS = [
+    { id: 'default', name: 'Default (Square)', desc: '640×480 - Traditional layout' },
+    { id: 'taskbar', name: 'Taskbar Strip', desc: '800×120 - Perfect for taskbar' },
+    { id: 'compact', name: 'Compact', desc: '400×300 - Smaller window' },
+    { id: 'minimal', name: 'Minimal Strip', desc: '600×100 - Ultra-thin bar' },
+  ];
 
   return (
     <div className="flex flex-col items-center justify-center gap-8">
@@ -203,7 +252,7 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 relative">
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -254,6 +303,52 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
         >
           {isPipActive ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
         </motion.button>
+
+        {/* PiP Layout Settings */}
+        <div className="relative">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowLayoutMenu(!showLayoutMenu)}
+            className="btn-secondary w-14 h-14 flex items-center justify-center"
+            title="PiP Layout Settings"
+          >
+            <Settings size={20} />
+          </motion.button>
+
+          {/* Layout Selection Menu */}
+          <AnimatePresence>
+            {showLayoutMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="absolute bottom-full right-0 mb-2 glass rounded-xl p-3 min-w-[280px] z-50 shadow-xl"
+              >
+                <div className="text-xs text-gray-400 mb-2 font-semibold">PiP LAYOUT</div>
+                <div className="space-y-1">
+                  {LAYOUT_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => handleLayoutChange(option.id)}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
+                        currentLayout === option.id
+                          ? 'bg-time-red text-white'
+                          : 'hover:bg-white/10 text-gray-300'
+                      }`}
+                    >
+                      <div className="font-medium text-sm">{option.name}</div>
+                      <div className="text-xs opacity-75">{option.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-focus-border text-xs text-gray-500">
+                  💡 Tip: Try "Taskbar Strip" to place it on your taskbar!
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Progress Text */}
@@ -283,6 +378,16 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
         selectedTask={selectedTask}
         isPipActive={isPipActive}
         onPipToggle={setIsPipActive}
+        layout={currentLayout}
+        ref={pipTimerRef}
+      />
+
+      {/* Post-Session Review Dialog */}
+      <PomodoroReview
+        isOpen={showReview}
+        onClose={handleReviewSkip}
+        onSave={handleReviewSave}
+        taskName={selectedTask?.task_name || 'Unknown Task'}
       />
     </div>
   );

@@ -151,10 +151,24 @@ class ApiClient {
   }
 
   /**
-   * Create a new pomodoro
+   * Get pomodoros with optional filters
+   * GET /api/pomodoros?day_id=X&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
+   */
+  async getPomodoros(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.day_id) params.append('day_id', filters.day_id);
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+    
+    const queryString = params.toString();
+    return this.request(`/api/pomodoros${queryString ? '?' + queryString : ''}`);
+  }
+
+  /**
+   * Create a new pomodoro with review
    * POST /api/pomodoros
    */
-  async createPomodoro(taskId, pomodoroData) {
+  async createPomodoro(pomodoroData) {
     return this.request(`/api/pomodoros`, {
       method: 'POST',
       body: JSON.stringify(pomodoroData),
