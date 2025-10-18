@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Star, TrendingUp, X } from 'lucide-react';
 
@@ -7,8 +7,18 @@ import { Moon, Star, TrendingUp, X } from 'lucide-react';
  * Evening reflection: rate satisfaction and capture learnings
  */
 export default function EndDayDialog({ isOpen, onClose, onSave, dayData }) {
-  const [satisfaction, setSatisfaction] = useState(dayData?.satisfaction || 5);
-  const [reflection, setReflection] = useState(dayData?.reflection || '');
+  const [satisfaction, setSatisfaction] = useState(dayData?.day_rating || 5);
+  const [reflection, setReflection] = useState(dayData?.reflection_notes || '');
+
+  // Update state when dayData changes (after save)
+  useEffect(() => {
+    if (dayData?.day_rating) {
+      setSatisfaction(dayData.day_rating);
+    }
+    if (dayData?.reflection_notes) {
+      setReflection(dayData.reflection_notes);
+    }
+  }, [dayData]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -19,8 +29,10 @@ export default function EndDayDialog({ isOpen, onClose, onSave, dayData }) {
     onClose();
   };
 
-  const totalPomodoros = dayData?.tasks?.reduce((sum, task) => sum + task.completed_pomodoros, 0) || 0;
-  const completedTasks = dayData?.tasks?.filter(task => task.is_completed).length || 0;
+  const isAlreadyCompleted = dayData?.day_rating && dayData?.reflection_notes;
+
+  const totalPomodoros = dayData?.tasks?.reduce((sum, task) => sum + (task.pomodoros_spent || 0), 0) || 0;
+  const completedTasks = dayData?.tasks?.filter(task => task.completed).length || 0;
   const totalTasks = dayData?.tasks?.length || 0;
 
   return (
@@ -66,9 +78,13 @@ export default function EndDayDialog({ isOpen, onClose, onSave, dayData }) {
                     <Moon size={32} className="text-insight-purple" />
                   </div>
                 </motion.div>
-                <h2 className="text-3xl font-bold mb-2">Day Complete</h2>
+                <h2 className="text-3xl font-bold mb-2">
+                  {isAlreadyCompleted ? 'Day Reflection' : 'Day Complete'}
+                </h2>
                 <p className="text-gray-400">
-                  Reflect on your progress. Growth happens in reflection.
+                  {isAlreadyCompleted 
+                    ? 'Your reflection from today. You can update it if needed.'
+                    : 'Reflect on your progress. Growth happens in reflection.'}
                 </p>
               </div>
 
@@ -186,7 +202,7 @@ export default function EndDayDialog({ isOpen, onClose, onSave, dayData }) {
                     onClick={onClose}
                     className="flex-1 py-3 rounded-xl border border-focus-border hover:bg-white/5 transition-colors"
                   >
-                    Skip for now
+                    {isAlreadyCompleted ? 'Close' : 'Skip for now'}
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
@@ -194,7 +210,7 @@ export default function EndDayDialog({ isOpen, onClose, onSave, dayData }) {
                     type="submit"
                     className="flex-1 btn-primary py-3"
                   >
-                    Save & Rest 🌙
+                    {isAlreadyCompleted ? 'Update Reflection 🌙' : 'Save & Rest 🌙'}
                   </motion.button>
                 </div>
               </form>

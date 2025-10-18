@@ -89,6 +89,17 @@ class ApiClient {
   }
 
   /**
+   * Update day reflection (end of day)
+   * PUT /api/days/:id/reflection
+   */
+  async updateDayReflection(dayId, reflectionData) {
+    return this.request(`/api/days/${dayId}/reflection`, {
+      method: 'PUT',
+      body: JSON.stringify(reflectionData),
+    });
+  }
+
+  /**
    * Delete a day
    * DELETE /api/days/:date
    */

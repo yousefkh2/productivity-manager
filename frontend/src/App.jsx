@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Cloud, CloudOff, Calendar, TrendingUp, BarChart3, Timer as TimerIcon } from 'lucide-react';
+import { Cloud, CloudOff, Calendar, TrendingUp, BarChart3, Timer as TimerIcon, Moon } from 'lucide-react';
 import Timer from './components/Timer';
 import TaskList from './components/TaskList';
 import DailyIntent from './components/DailyIntent';
@@ -216,13 +216,29 @@ function App() {
 
   const handleSaveEndDay = async (reflectionData) => {
     try {
-      const updatedDay = await api.updateDay(currentDate, {
-        ...dayData,
-        ...reflectionData,
-      });
+      if (!dayData || !dayData.id) {
+        console.error('No day data available');
+        return;
+      }
+
+      // Map frontend fields to backend fields
+      const backendData = {
+        day_rating: reflectionData.satisfaction,
+        reflection_notes: reflectionData.reflection,
+        main_distraction: '', // Could add this field to the dialog later
+      };
+
+      await api.updateDayReflection(dayData.id, backendData);
+      
+      // Reload the day data to get the updated reflection
+      const updatedDay = await api.getDayByDate(currentDate);
       setDayData(updatedDay);
+      
+      // Show success message
+      alert('✓ Day reflection saved! Great work today. 🌙');
     } catch (error) {
       console.error('Failed to save reflection:', error);
+      alert('Failed to save reflection. Please try again.');
     }
   };
 
@@ -253,6 +269,13 @@ function App() {
                   day: 'numeric',
                 })}
               </div>
+              {/* Day Completed Badge */}
+              {dayData?.day_rating && (
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-insight-purple/20 border border-insight-purple/30">
+                  <Moon size={14} className="text-insight-purple" />
+                  <span className="text-xs font-medium text-insight-purple">Day Complete</span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-4">
@@ -285,10 +308,23 @@ function App() {
               
               <button
                 onClick={() => setShowEndDay(true)}
-                className="btn-secondary px-4 py-2 text-sm"
+                className={`px-4 py-2 text-sm transition-all ${
+                  dayData?.day_rating 
+                    ? 'bg-insight-purple/20 text-insight-purple border border-insight-purple/30' 
+                    : 'btn-secondary hover:bg-white/20'
+                }`}
               >
-                <TrendingUp size={16} className="inline mr-2" />
-                End Day
+                {dayData?.day_rating ? (
+                  <>
+                    <Moon size={16} className="inline mr-2" />
+                    View Reflection
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp size={16} className="inline mr-2" />
+                    End Day
+                  </>
+                )}
               </button>
             </div>
           </div>

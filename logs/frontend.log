@@ -18,3 +18,13 @@ You are using Node.js 20.17.0. Vite requires Node.js version 20.19+ or 22.12+. P
 11:07:29 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
 11:44:12 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
 11:45:27 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
+1:41:45 AM [vite] (client) hmr update /src/App.jsx, /src/components/Analytics.jsx, /src/index.css
+1:41:56 AM [vite] (client) hmr update /src/App.jsx, /src/index.css
+1:42:06 AM [vite] (client) hmr update /src/components/EndDayDialog.jsx, /src/index.css
+1:42:20 AM [vite] (client) hmr update /src/App.jsx, /src/index.css
+1:42:33 AM [vite] (client) hmr update /src/App.jsx, /src/index.css
+1:42:45 AM [vite] (client) hmr update /src/App.jsx, /src/index.css
+1:42:55 AM [vite] (client) hmr update /src/components/EndDayDialog.jsx, /src/index.css
+1:43:02 AM [vite] (client) hmr update /src/components/EndDayDialog.jsx, /src/index.css
+1:43:17 AM [vite] (client) hmr update /src/components/EndDayDialog.jsx, /src/index.css
+1:43:31 AM [vite] (client) hmr update /src/components/EndDayDialog.jsx, /src/index.css
