@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sunrise, Target, X, Clock, Plus, Trash2 } from 'lucide-react';
+import { Sunrise, Target, X, Clock, Plus, Trash2, Gift } from 'lucide-react';
 
 /**
  * Daily Planning Modal
  * Step 1: How many pomodoros? (with finish time estimate)
  * Step 2: Which tasks will you work on?
+ * Step 3: What's your reward for completing?
  */
 export default function DailyIntent({ isOpen, onClose, onSave, initialData }) {
   const [step, setStep] = useState(1);
   const [plannedPomodoros, setPlannedPomodoros] = useState(initialData?.planned_pomodoros || 8);
   const [tasks, setTasks] = useState(initialData?.tasks || []);
+  const [reward, setReward] = useState(initialData?.reward || '');
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskEstimate, setNewTaskEstimate] = useState(1);
 
@@ -68,10 +70,15 @@ export default function DailyIntent({ isOpen, onClose, onSave, initialData }) {
     }
   };
 
+  const handleStep2Next = () => {
+    setStep(3);
+  };
+
   const handleSubmit = () => {
     onSave({
       planned_pomodoros: plannedPomodoros,
       tasks: tasks,
+      reward: reward.trim(),
     });
     onClose();
   };
@@ -126,22 +133,32 @@ export default function DailyIntent({ isOpen, onClose, onSave, initialData }) {
                 </motion.div>
                 <h2 className="text-3xl font-bold mb-2">Plan Your Day</h2>
                 <p className="text-gray-400">
-                  {step === 1 ? 'How many pomodoros are you planning?' : 'Which tasks will you work on?'}
+                  {step === 1 
+                    ? 'How many pomodoros are you planning?' 
+                    : step === 2 
+                    ? 'Which tasks will you work on?' 
+                    : 'What will you reward yourself with?'}
                 </p>
               </div>
 
               {/* Step Indicator */}
               <div className="flex items-center justify-center gap-3 mb-8">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${
-                  step === 1 ? 'bg-plan-blue text-white' : 'bg-focus-gray text-gray-400'
+                  step === 1 ? 'bg-plan-blue text-white' : step > 1 ? 'bg-focus-green text-white' : 'bg-focus-gray text-gray-400'
                 }`}>
                   1
                 </div>
                 <div className="w-12 h-0.5 bg-focus-border"></div>
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${
-                  step === 2 ? 'bg-plan-blue text-white' : 'bg-focus-gray text-gray-400'
+                  step === 2 ? 'bg-plan-blue text-white' : step > 2 ? 'bg-focus-green text-white' : 'bg-focus-gray text-gray-400'
                 }`}>
                   2
+                </div>
+                <div className="w-12 h-0.5 bg-focus-border"></div>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${
+                  step === 3 ? 'bg-plan-blue text-white' : 'bg-focus-gray text-gray-400'
+                }`}>
+                  3
                 </div>
               </div>
 
@@ -359,14 +376,119 @@ export default function DailyIntent({ isOpen, onClose, onSave, initialData }) {
                       onClick={handleSkip}
                       className="flex-1 py-3 rounded-xl border border-focus-border hover:bg-white/5 transition-colors"
                     >
-                      Skip for now
+                      Skip Planning
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleStep2Next}
+                      disabled={tasks.length === 0}
+                      className="flex-1 btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next: Set Reward →
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Step 3: Reward */}
+              {step === 3 && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div>
+                    <label className="block text-lg font-medium mb-2 flex items-center gap-2">
+                      <Gift size={24} className="text-focus-green" />
+                      Your Reward
+                    </label>
+                    <p className="text-gray-400 text-sm mb-6">
+                      What's something you'll enjoy guilt-free once you finish your pomodoros?
+                      <br />
+                      <span className="text-xs">(It can be small but specific.)</span>
+                    </p>
+
+                    {/* Reward Input */}
+                    <textarea
+                      value={reward}
+                      onChange={(e) => setReward(e.target.value)}
+                      placeholder="Watch one episode of Dark 🍿&#10;Read Atomic Habits for 30 min 📖&#10;Take a long walk with music 🎧&#10;Call my friend ☎️"
+                      className="w-full bg-focus-black/50 border border-focus-border rounded-xl px-4 py-3 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-focus-green"
+                      autoFocus
+                    />
+
+                    {/* Unlock Message */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="mt-4 glass rounded-xl p-4 bg-gradient-to-r from-focus-green/10 to-plan-blue/10 border border-focus-green/30"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-focus-green/20 flex items-center justify-center flex-shrink-0">
+                          <Clock size={24} className="text-focus-green" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-white">
+                            You'll unlock this once you hit {plannedPomodoros} pomodoro{plannedPomodoros !== 1 ? 's' : ''}.
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Your commitment to yourself. Make it happen! 💪
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* Quick Examples */}
+                    <div className="mt-4">
+                      <p className="text-xs text-gray-500 mb-2">Quick ideas:</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {[
+                          'Watch one episode 🍿',
+                          'Read for 30 min 📖',
+                          'Long walk 🎧',
+                          'Gaming session 🎮',
+                          'Favorite snack 🍫',
+                        ].map((example) => (
+                          <motion.button
+                            key={example}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setReward(example)}
+                            className="px-3 py-1 rounded-lg bg-focus-gray hover:bg-focus-border text-xs transition-colors"
+                          >
+                            {example}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setStep(2)}
+                      className="px-6 py-3 rounded-xl border border-focus-border hover:bg-white/5 transition-colors"
+                    >
+                      ← Back
                     </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={handleSubmit}
-                      disabled={tasks.length === 0}
-                      className="flex-1 btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 py-3 rounded-xl border border-focus-border hover:bg-white/5 transition-colors"
+                    >
+                      Skip Reward
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleSubmit}
+                      className="flex-1 btn-primary py-3"
                     >
                       Start Day! 🚀
                     </motion.button>

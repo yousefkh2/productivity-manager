@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Cloud, CloudOff, Calendar, TrendingUp, BarChart3, Timer as TimerIcon, Moon } from 'lucide-react';
+import { Cloud, CloudOff, Calendar, TrendingUp, BarChart3, Timer as TimerIcon, Moon, Gift } from 'lucide-react';
 import Timer from './components/Timer';
 import TaskList from './components/TaskList';
 import DailyIntent from './components/DailyIntent';
@@ -177,10 +177,11 @@ function App() {
       console.log('Saving daily intent:', intentData);
       console.log('Day data:', dayData);
 
-      // Update day with planned pomodoros (target_pomos in backend)
+      // Update day with planned pomodoros and reward
       const updatedDay = await api.updateDay(currentDate, {
         ...dayData,
         target_pomos: intentData.planned_pomodoros,
+        reward: intentData.reward || '',
       });
       setDayData(updatedDay);
       console.log('Day updated:', updatedDay);
@@ -506,6 +507,34 @@ function App() {
                     }
                   })()}
                 </div>
+
+                {/* Reward Display */}
+                {dayData.reward && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 glass rounded-xl p-4 bg-gradient-to-r from-focus-green/10 to-plan-blue/10 border border-focus-green/30"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-focus-green/20 flex items-center justify-center flex-shrink-0">
+                        <Gift size={20} className="text-focus-green" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-xs text-gray-400 mb-1">Your Reward</div>
+                        <div className="text-sm font-medium text-white">{dayData.reward}</div>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {tasks.reduce((sum, t) => sum + (t.pomodoros_spent || 0), 0) >= dayData.target_pomos ? (
+                          <span className="text-focus-green font-semibold">🎉 Unlocked!</span>
+                        ) : (
+                          <span>
+                            {dayData.target_pomos - tasks.reduce((sum, t) => sum + (t.pomodoros_spent || 0), 0)} more to go
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           )}

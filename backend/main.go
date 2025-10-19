@@ -36,6 +36,7 @@ type Day struct {
 	DayRating       *int       `json:"day_rating"`       // 1-5 stars
 	MainDistraction string     `json:"main_distraction"` // What got in the way
 	ReflectionNotes string     `json:"reflection_notes"` // Additional thoughts
+	Reward          string     `json:"reward"`           // Reward for completing pomodoros
 }
 
 type DailyTask struct {
@@ -126,7 +127,8 @@ func initDB() error {
 		comment TEXT,
 		day_rating INTEGER CHECK(day_rating BETWEEN 1 AND 5),
 		main_distraction TEXT,
-		reflection_notes TEXT
+		reflection_notes TEXT,
+		reward TEXT DEFAULT ''
 	);
 
 	CREATE TABLE IF NOT EXISTS daily_tasks (
@@ -410,15 +412,15 @@ func getDay(w http.ResponseWriter, r *http.Request) {
 	var day Day
 	var startTime, endTime sql.NullTime
 	var dayRating sql.NullInt64
-	var mainDistraction, reflectionNotes, comment sql.NullString
+	var mainDistraction, reflectionNotes, comment, reward sql.NullString
 
 	err := db.QueryRow(`
 		SELECT id, date, target_pomos, finished_pomos, start_time, end_time, 
-		       comment, day_rating, main_distraction, reflection_notes
+		       comment, day_rating, main_distraction, reflection_notes, reward
 		FROM day WHERE date = ?
 	`, date).Scan(&day.ID, &day.Date, &day.TargetPomos, &day.FinishedPomos,
 		&startTime, &endTime, &comment, &dayRating,
-		&mainDistraction, &reflectionNotes)
+		&mainDistraction, &reflectionNotes, &reward)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, "Day not found", http.StatusNotFound)
@@ -448,6 +450,9 @@ func getDay(w http.ResponseWriter, r *http.Request) {
 	if reflectionNotes.Valid {
 		day.ReflectionNotes = reflectionNotes.String
 	}
+	if reward.Valid {
+		day.Reward = reward.String
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(day)
@@ -467,9 +472,9 @@ func createOrUpdateDay(w http.ResponseWriter, r *http.Request) {
 	if err == sql.ErrNoRows {
 		// Insert new day
 		result, err := db.Exec(`
-			INSERT INTO day (date, target_pomos, finished_pomos, start_time, comment)
-			VALUES (?, ?, ?, ?, ?)
-		`, day.Date, day.TargetPomos, day.FinishedPomos, day.StartTime, day.Comment)
+			INSERT INTO day (date, target_pomos, finished_pomos, start_time, comment, reward)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`, day.Date, day.TargetPomos, day.FinishedPomos, day.StartTime, day.Comment, day.Reward)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -484,9 +489,9 @@ func createOrUpdateDay(w http.ResponseWriter, r *http.Request) {
 		// Update existing day
 		_, err = db.Exec(`
 			UPDATE day 
-			SET target_pomos = ?, finished_pomos = ?, start_time = ?, end_time = ?, comment = ?
+			SET target_pomos = ?, finished_pomos = ?, start_time = ?, end_time = ?, comment = ?, reward = ?
 			WHERE id = ?
-		`, day.TargetPomos, day.FinishedPomos, day.StartTime, day.EndTime, day.Comment, existingID)
+		`, day.TargetPomos, day.FinishedPomos, day.StartTime, day.EndTime, day.Comment, day.Reward, existingID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
