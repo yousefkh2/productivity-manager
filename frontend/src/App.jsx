@@ -14,7 +14,21 @@ function App() {
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [dayData, setDayData] = useState(null);
   const [tasks, setTasks] = useState([]);
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [selectedTaskId, setSelectedTaskId] = useState(() => {
+    // Restore selected task from localStorage only if it's for today
+    const savedDate = localStorage.getItem('selectedTaskDate');
+    const today = new Date().toISOString().split('T')[0];
+    
+    if (savedDate === today) {
+      const saved = localStorage.getItem('selectedTaskId');
+      return saved ? parseInt(saved, 10) : null;
+    }
+    
+    // Different day, clear old selection
+    localStorage.removeItem('selectedTaskId');
+    localStorage.removeItem('selectedTaskDate');
+    return null;
+  });
   const [showDailyIntent, setShowDailyIntent] = useState(false);
   const [showEndDay, setShowEndDay] = useState(false);
   const [showTaskSwitch, setShowTaskSwitch] = useState(false);
@@ -25,6 +39,18 @@ function App() {
   
   // Refs to track timer state
   const timerStateRef = useRef({ isRunning: false, timeLeft: 0, totalTime: 0 });
+
+  // Persist selected task to localStorage
+  useEffect(() => {
+    if (selectedTaskId !== null) {
+      localStorage.setItem('selectedTaskId', selectedTaskId.toString());
+      // Also save the date to validate on restore
+      localStorage.setItem('selectedTaskDate', currentDate);
+    } else {
+      localStorage.removeItem('selectedTaskId');
+      localStorage.removeItem('selectedTaskDate');
+    }
+  }, [selectedTaskId, currentDate]);
 
   // Load today's data on mount
   useEffect(() => {
@@ -53,11 +79,20 @@ function App() {
       const tasksData = await api.getDailyTasks(day.id);
       setTasks(tasksData || []);
 
-      // Auto-select first incomplete task if none selected
-      if (tasksData && tasksData.length > 0 && !selectedTaskId) {
-        const firstIncomplete = tasksData.find(t => !t.is_completed);
-        if (firstIncomplete) {
-          setSelectedTaskId(firstIncomplete.id);
+      // Validate and restore selected task
+      if (tasksData && tasksData.length > 0) {
+        // Check if saved selectedTaskId still exists in task list
+        const savedTaskExists = selectedTaskId && tasksData.find(t => t.id === selectedTaskId);
+        
+        if (savedTaskExists) {
+          // Saved task still exists, keep it selected
+          // (selectedTaskId already set from localStorage)
+        } else {
+          // Saved task doesn't exist or no task was saved - auto-select first incomplete
+          const firstIncomplete = tasksData.find(t => !t.is_completed);
+          if (firstIncomplete) {
+            setSelectedTaskId(firstIncomplete.id);
+          }
         }
       }
 

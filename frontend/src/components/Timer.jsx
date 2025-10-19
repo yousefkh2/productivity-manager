@@ -23,6 +23,17 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
         // Only restore if the state is recent (within last 2 hours)
         const stateAge = Date.now() - (state.timestamp || 0);
         if (stateAge < 2 * 60 * 60 * 1000) {
+          // If timer was running, adjust timeLeft based on elapsed time
+          if (state.isRunning && state.timeLeft > 0) {
+            const elapsedSeconds = Math.floor(stateAge / 1000);
+            const adjustedTimeLeft = Math.max(0, state.timeLeft - elapsedSeconds);
+            return {
+              ...state,
+              timeLeft: adjustedTimeLeft,
+              // If time ran out while away, mark as not running
+              isRunning: adjustedTimeLeft > 0,
+            };
+          }
           return state;
         }
       }
@@ -35,7 +46,7 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
   const savedState = loadTimerState();
 
   const [timeLeft, setTimeLeft] = useState(savedState?.timeLeft || FOCUS_TIME);
-  const [isRunning, setIsRunning] = useState(false); // Always start paused after tab switch
+  const [isRunning, setIsRunning] = useState(savedState?.isRunning || false); // Restore running state
   const [mode, setMode] = useState(savedState?.mode || 'focus');
   const [isPipActive, setIsPipActive] = useState(false);
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
@@ -85,12 +96,13 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
   useEffect(() => {
     const timerState = {
       timeLeft,
+      isRunning,
       mode,
       pauseCount,
       timestamp: Date.now(),
     };
     localStorage.setItem('timerState', JSON.stringify(timerState));
-  }, [timeLeft, mode, pauseCount]);
+  }, [timeLeft, isRunning, mode, pauseCount]);
 
   // Debug: Log when showReview changes
   useEffect(() => {
@@ -103,6 +115,16 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
       setIsRunning(false);
     }
   }, [disabled]);
+
+  // Check if timer completed while page was closed/refreshed
+  useEffect(() => {
+    // Only run once on mount
+    if (savedState && savedState.isRunning && timeLeft === 0) {
+      // Timer completed while page was closed
+      console.log('Timer completed while page was closed - triggering completion');
+      handleComplete();
+    }
+  }, []); // Empty deps = run once on mount
 
   // Timer logic
   useEffect(() => {
