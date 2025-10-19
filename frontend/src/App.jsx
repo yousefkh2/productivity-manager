@@ -357,7 +357,7 @@ function App() {
   return (
     <div className="min-h-screen bg-focus-black text-white">
       {/* Header */}
-      <header className="border-b border-focus-border">
+      <header>
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
