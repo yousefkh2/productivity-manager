@@ -182,6 +182,7 @@ function App() {
         ...dayData,
         target_pomos: intentData.planned_pomodoros,
         reward: intentData.reward || '',
+        planned_at: new Date().toISOString(), // Store planning timestamp
       });
       setDayData(updatedDay);
       console.log('Day updated:', updatedDay);
@@ -351,8 +352,13 @@ function App() {
                   <div className="text-sm text-gray-400">Estimated Finish</div>
                   <div className="text-xl font-semibold text-white">
                     {(() => {
-                      // Calculate finish time based on target pomodoros
-                      const now = new Date();
+                      // Calculate finish time based on when day was planned
+                      // Fallback: use start_time if planned_at is missing (for old records)
+                      const plannedTime = dayData.planned_at 
+                        ? new Date(dayData.planned_at) 
+                        : dayData.start_time 
+                        ? new Date(dayData.start_time)
+                        : new Date();
                       const pomos = dayData.target_pomos;
                       
                       // Each pomodoro: 25min work + 5min break = 30min
@@ -363,8 +369,8 @@ function App() {
                       
                       const totalMinutes = (pomos * 25) + (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
                       
-                      const finishTime = new Date(now);
-                      finishTime.setMinutes(now.getMinutes() + totalMinutes);
+                      const finishTime = new Date(plannedTime);
+                      finishTime.setMinutes(plannedTime.getMinutes() + totalMinutes);
                       
                       return finishTime.toLocaleTimeString('en-US', { 
                         hour: 'numeric', 
@@ -385,8 +391,11 @@ function App() {
                     <span>
                       {(() => {
                         const now = new Date();
-                        const startOfDay = new Date(now);
-                        startOfDay.setHours(9, 0, 0, 0); // Assume 9 AM start
+                        const plannedTime = dayData.planned_at 
+                          ? new Date(dayData.planned_at) 
+                          : dayData.start_time 
+                          ? new Date(dayData.start_time)
+                          : now;
                         
                         const pomos = dayData.target_pomos;
                         const shortBreaks = Math.floor((pomos - 1) / 4) * 3 + (pomos - 1) % 4;
@@ -394,7 +403,7 @@ function App() {
                         const lunchBreak = pomos >= 8 ? 30 : 0;
                         const totalMinutes = (pomos * 25) + (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
                         
-                        const elapsed = (now - startOfDay) / (1000 * 60); // minutes elapsed
+                        const elapsed = (now - plannedTime) / (1000 * 60); // minutes elapsed since planning
                         const timeProgress = Math.min(100, Math.max(0, (elapsed / totalMinutes) * 100));
                         
                         return `${Math.round(timeProgress)}%`;
@@ -407,8 +416,11 @@ function App() {
                       animate={{ 
                         width: `${(() => {
                           const now = new Date();
-                          const startOfDay = new Date(now);
-                          startOfDay.setHours(9, 0, 0, 0);
+                          const plannedTime = dayData.planned_at 
+                            ? new Date(dayData.planned_at) 
+                            : dayData.start_time 
+                            ? new Date(dayData.start_time)
+                            : now;
                           
                           const pomos = dayData.target_pomos;
                           const shortBreaks = Math.floor((pomos - 1) / 4) * 3 + (pomos - 1) % 4;
@@ -416,7 +428,7 @@ function App() {
                           const lunchBreak = pomos >= 8 ? 30 : 0;
                           const totalMinutes = (pomos * 25) + (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
                           
-                          const elapsed = (now - startOfDay) / (1000 * 60);
+                          const elapsed = (now - plannedTime) / (1000 * 60);
                           const timeProgress = Math.min(100, Math.max(0, (elapsed / totalMinutes) * 100));
                           
                           return timeProgress;
@@ -449,8 +461,11 @@ function App() {
                           const completedPomos = tasks.reduce((sum, t) => sum + (t.pomodoros_spent || 0), 0);
                           const targetPomos = dayData.target_pomos;
                           const now = new Date();
-                          const startOfDay = new Date(now);
-                          startOfDay.setHours(9, 0, 0, 0);
+                          const plannedTime = dayData.planned_at 
+                            ? new Date(dayData.planned_at) 
+                            : dayData.start_time 
+                            ? new Date(dayData.start_time)
+                            : now;
                           
                           const pomos = targetPomos;
                           const shortBreaks = Math.floor((pomos - 1) / 4) * 3 + (pomos - 1) % 4;
@@ -458,7 +473,7 @@ function App() {
                           const lunchBreak = pomos >= 8 ? 30 : 0;
                           const totalMinutes = (pomos * 25) + (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
                           
-                          const elapsed = (now - startOfDay) / (1000 * 60);
+                          const elapsed = (now - plannedTime) / (1000 * 60);
                           const timeProgress = Math.min(100, Math.max(0, (elapsed / totalMinutes) * 100));
                           const workProgress = (completedPomos / targetPomos) * 100;
                           
@@ -483,8 +498,11 @@ function App() {
                     const completedPomos = tasks.reduce((sum, t) => sum + (t.pomodoros_spent || 0), 0);
                     const targetPomos = dayData.target_pomos;
                     const now = new Date();
-                    const startOfDay = new Date(now);
-                    startOfDay.setHours(9, 0, 0, 0);
+                    const plannedTime = dayData.planned_at 
+                      ? new Date(dayData.planned_at) 
+                      : dayData.start_time 
+                      ? new Date(dayData.start_time)
+                      : now;
                     
                     const pomos = targetPomos;
                     const shortBreaks = Math.floor((pomos - 1) / 4) * 3 + (pomos - 1) % 4;
@@ -492,7 +510,7 @@ function App() {
                     const lunchBreak = pomos >= 8 ? 30 : 0;
                     const totalMinutes = (pomos * 25) + (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
                     
-                    const elapsed = (now - startOfDay) / (1000 * 60);
+                    const elapsed = (now - plannedTime) / (1000 * 60);
                     const timeProgress = Math.min(100, Math.max(0, (elapsed / totalMinutes) * 100));
                     const workProgress = (completedPomos / targetPomos) * 100;
                     

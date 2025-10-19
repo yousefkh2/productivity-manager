@@ -32,6 +32,7 @@ type Day struct {
 	FinishedPomos   int        `json:"finished_pomos"`
 	StartTime       *time.Time `json:"start_time"`
 	EndTime         *time.Time `json:"end_time"`
+	PlannedAt       *time.Time `json:"planned_at"`       // When the day was planned
 	Comment         string     `json:"comment"`
 	DayRating       *int       `json:"day_rating"`       // 1-5 stars
 	MainDistraction string     `json:"main_distraction"` // What got in the way
@@ -124,6 +125,7 @@ func initDB() error {
 		finished_pomos INTEGER NOT NULL DEFAULT 0,
 		start_time TIMESTAMP,
 		end_time TIMESTAMP,
+		planned_at TIMESTAMP,
 		comment TEXT,
 		day_rating INTEGER CHECK(day_rating BETWEEN 1 AND 5),
 		main_distraction TEXT,
@@ -410,16 +412,16 @@ func getDay(w http.ResponseWriter, r *http.Request) {
 	date := vars["date"]
 
 	var day Day
-	var startTime, endTime sql.NullTime
+	var startTime, endTime, plannedAt sql.NullTime
 	var dayRating sql.NullInt64
 	var mainDistraction, reflectionNotes, comment, reward sql.NullString
 
 	err := db.QueryRow(`
-		SELECT id, date, target_pomos, finished_pomos, start_time, end_time, 
+		SELECT id, date, target_pomos, finished_pomos, start_time, end_time, planned_at,
 		       comment, day_rating, main_distraction, reflection_notes, reward
 		FROM day WHERE date = ?
 	`, date).Scan(&day.ID, &day.Date, &day.TargetPomos, &day.FinishedPomos,
-		&startTime, &endTime, &comment, &dayRating,
+		&startTime, &endTime, &plannedAt, &comment, &dayRating,
 		&mainDistraction, &reflectionNotes, &reward)
 
 	if err == sql.ErrNoRows {
@@ -436,6 +438,9 @@ func getDay(w http.ResponseWriter, r *http.Request) {
 	}
 	if endTime.Valid {
 		day.EndTime = &endTime.Time
+	}
+	if plannedAt.Valid {
+		day.PlannedAt = &plannedAt.Time
 	}
 	if dayRating.Valid {
 		rating := int(dayRating.Int64)
@@ -472,9 +477,9 @@ func createOrUpdateDay(w http.ResponseWriter, r *http.Request) {
 	if err == sql.ErrNoRows {
 		// Insert new day
 		result, err := db.Exec(`
-			INSERT INTO day (date, target_pomos, finished_pomos, start_time, comment, reward)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`, day.Date, day.TargetPomos, day.FinishedPomos, day.StartTime, day.Comment, day.Reward)
+			INSERT INTO day (date, target_pomos, finished_pomos, start_time, planned_at, comment, reward)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+		`, day.Date, day.TargetPomos, day.FinishedPomos, day.StartTime, day.PlannedAt, day.Comment, day.Reward)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -489,9 +494,9 @@ func createOrUpdateDay(w http.ResponseWriter, r *http.Request) {
 		// Update existing day
 		_, err = db.Exec(`
 			UPDATE day 
-			SET target_pomos = ?, finished_pomos = ?, start_time = ?, end_time = ?, comment = ?, reward = ?
+			SET target_pomos = ?, finished_pomos = ?, start_time = ?, end_time = ?, planned_at = ?, comment = ?, reward = ?
 			WHERE id = ?
-		`, day.TargetPomos, day.FinishedPomos, day.StartTime, day.EndTime, day.Comment, day.Reward, existingID)
+		`, day.TargetPomos, day.FinishedPomos, day.StartTime, day.EndTime, day.PlannedAt, day.Comment, day.Reward, existingID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
