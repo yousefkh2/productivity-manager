@@ -304,7 +304,7 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
             className="text-focus-gray"
           />
           {/* Progress circle */}
-          <motion.circle
+          <circle
             cx="160"
             cy="160"
             r="140"
@@ -312,16 +312,11 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
             stroke="currentColor"
             strokeWidth="12"
             strokeLinecap="round"
-            className={mode === 'focus' ? 'text-time-red' : 'text-focus-green'}
+            className={`transition-all duration-1000 ease-linear ${mode === 'focus' ? 'text-time-red' : 'text-focus-green'}`}
             style={{
               strokeDasharray: circumference,
               strokeDashoffset: circumference - (progress / 100) * circumference,
             }}
-            initial={{ strokeDashoffset: circumference }}
-            animate={{
-              strokeDashoffset: circumference - (progress / 100) * circumference,
-            }}
-            transition={{ duration: 0.5, ease: 'easeInOut' }}
           />
         </svg>
 

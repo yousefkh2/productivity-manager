@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Check, Trash2, Clock, Target, Zap } from 'lucide-react';
+import { Plus, Check, Trash2, Clock, Target, Zap, PlusCircle, MinusCircle } from 'lucide-react';
 
 /**
  * Task List Component
@@ -33,6 +33,23 @@ export default function TaskList({ tasks, onAddTask, onUpdateTask, onDeleteTask,
       ...task,
       completed: !task.completed,
     });
+  };
+
+  const addManualPomodoro = (task) => {
+    onUpdateTask(task.id, {
+      ...task,
+      pomodoros_spent: (task.pomodoros_spent || 0) + 1,
+    });
+  };
+
+  const removeManualPomodoro = (task) => {
+    // Don't go below 0
+    if ((task.pomodoros_spent || 0) > 0) {
+      onUpdateTask(task.id, {
+        ...task,
+        pomodoros_spent: task.pomodoros_spent - 1,
+      });
+    }
   };
 
   const calculateProgress = (task) => {
@@ -198,20 +215,55 @@ export default function TaskList({ tasks, onAddTask, onUpdateTask, onDeleteTask,
                       </div>
                     </div>
 
-                    {/* Delete Button */}
-                    {!disabled && (
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteTask(task.id);
-                        }}
-                        className="text-gray-500 hover:text-time-red transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </motion.button>
-                    )}
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      {/* Remove Manual Pomodoro Button */}
+                      {!disabled && (task.pomodoros_spent || 0) > 0 && (
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeManualPomodoro(task);
+                          }}
+                          className="text-gray-500 hover:text-yellow-500 transition-colors"
+                          title="Remove pomodoro (undo mistake)"
+                        >
+                          <MinusCircle size={18} />
+                        </motion.button>
+                      )}
+
+                      {/* Add Manual Pomodoro Button */}
+                      {!disabled && (
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addManualPomodoro(task);
+                          }}
+                          className="text-gray-500 hover:text-focus-green transition-colors"
+                          title="Add completed pomodoro (done outside app)"
+                        >
+                          <PlusCircle size={18} />
+                        </motion.button>
+                      )}
+
+                      {/* Delete Button */}
+                      {!disabled && (
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteTask(task.id);
+                          }}
+                          className="text-gray-500 hover:text-time-red transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </motion.button>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               );
