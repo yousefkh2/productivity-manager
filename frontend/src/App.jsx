@@ -134,8 +134,8 @@ function App() {
       const newTask = await api.createTask(dayData.id, taskData);
       setTasks([...tasks, newTask]);
       
-      // Auto-select the newly added task
-      setSelectedTaskId(newTask.id);
+      // Don't auto-select the newly added task to avoid interrupting current timer
+      // User can manually select it when ready
     } catch (error) {
       console.error('Failed to add task:', error);
     }

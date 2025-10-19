@@ -1,0 +1,66 @@
+# Digital Ocean App Platform Configuration
+# This file defines how your app is built and deployed
+
+name: hardmode-pomo-app
+
+# Backend Service
+services:
+  - name: backend
+    github:
+      repo: yousefkh2/hardmode-pomo
+      branch: master
+      deploy_on_push: true
+    source_dir: /backend
+    dockerfile_path: backend/Dockerfile
+    
+    # HTTP configuration
+    http_port: 8080
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 30
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+    
+    # Resources
+    instance_count: 1
+    instance_size_slug: basic-xxs  # 512MB RAM, 1 vCPU - $5/month
+    
+    # Routes
+    routes:
+      - path: /
+    
+    # Environment variables
+    envs:
+      - key: PORT
+        value: "8080"
+      - key: ENV
+        value: "production"
+      - key: DB_PATH
+        value: "/app/data/hardmode.db"
+
+# Frontend Static Site  
+static_sites:
+  - name: frontend
+    github:
+      repo: yousefkh2/hardmode-pomo
+      branch: master
+      deploy_on_push: true
+    source_dir: /frontend
+    
+    # Build configuration
+    build_command: npm ci && npm run build
+    output_dir: dist
+    
+    # Routes
+    routes:
+      - path: /
+    
+    # Environment variables (update backend URL after backend is deployed)
+    envs:
+      - key: VITE_API_URL
+        value: "https://hardmode-backend-xxxxx.ondigitalocean.app"
+    
+    # Catchall route for SPA
+    catchall_document: index.html
