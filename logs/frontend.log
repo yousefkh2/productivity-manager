@@ -28,3 +28,14 @@ You are using Node.js 20.17.0. Vite requires Node.js version 20.19+ or 22.12+. P
 1:43:02 AM [vite] (client) hmr update /src/components/EndDayDialog.jsx, /src/index.css
 1:43:17 AM [vite] (client) hmr update /src/components/EndDayDialog.jsx, /src/index.css
 1:43:31 AM [vite] (client) hmr update /src/components/EndDayDialog.jsx, /src/index.css
+1:51:54 AM [vite] (client) hmr update /src/App.jsx, /src/index.css
+1:52:02 AM [vite] (client) hmr update /src/components/Timer.jsx, /src/index.css
+1:52:27 AM [vite] (client) hmr update /src/components/Timer.jsx, /src/index.css
+1:52:37 AM [vite] (client) hmr update /src/components/TaskList.jsx, /src/index.css
+1:52:48 AM [vite] (client) hmr update /src/components/TaskList.jsx, /src/index.css
+1:52:55 AM [vite] (client) hmr update /src/components/TaskList.jsx, /src/index.css
+1:53:14 AM [vite] (client) hmr update /src/components/TaskList.jsx, /src/index.css
+1:53:22 AM [vite] (client) hmr update /src/components/TaskList.jsx, /src/index.css
+1:53:33 AM [vite] (client) hmr update /src/components/TaskList.jsx, /src/index.css
+1:53:48 AM [vite] (client) hmr update /src/App.jsx, /src/index.css
+1:54:07 AM [vite] (client) hmr update /src/components/Timer.jsx, /src/index.css

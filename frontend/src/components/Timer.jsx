@@ -9,7 +9,7 @@ import PomodoroReview from './PomodoroReview';
  * 25 minutes Pomodoro with smooth animations
  * Side button icons: 36px (large and visible)
  */
-export default function Timer({ onComplete, taskId, selectedTask }) {
+export default function Timer({ onComplete, taskId, selectedTask, disabled = false }) {
   // TESTING MODE: 10 seconds for focus, 5 seconds for break
   const FOCUS_TIME = 25 * 60; // Change to 25 * 60 for production (25 minutes)
   const BREAK_TIME = 5 * 60;  // Change to 5 * 60 for production (5 minutes)
@@ -65,6 +65,13 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
   useEffect(() => {
     console.log('showReview state changed:', showReview);
   }, [showReview]);
+
+  // Stop timer when disabled (day is complete)
+  useEffect(() => {
+    if (disabled && isRunning) {
+      setIsRunning(false);
+    }
+  }, [disabled]);
 
   // Timer logic
   useEffect(() => {
@@ -306,10 +313,13 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
       {/* Controls */}
       <div className="flex items-center gap-4 relative">
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={toggleTimer}
-          className="btn-primary w-32 h-14 flex items-center justify-center gap-2"
+          whileHover={disabled ? {} : { scale: 1.05 }}
+          whileTap={disabled ? {} : { scale: 0.95 }}
+          onClick={disabled ? undefined : toggleTimer}
+          disabled={disabled}
+          className={`btn-primary w-32 h-14 flex items-center justify-center gap-2 ${
+            disabled ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
         >
           {isRunning ? (
             <>
@@ -325,20 +335,26 @@ export default function Timer({ onComplete, taskId, selectedTask }) {
         </motion.button>
 
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={resetTimer}
-          className="w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg transition-all p-0"
+          whileHover={disabled ? {} : { scale: 1.05 }}
+          whileTap={disabled ? {} : { scale: 0.95 }}
+          onClick={disabled ? undefined : resetTimer}
+          disabled={disabled}
+          className={`w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg transition-all p-0 ${
+            disabled ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
           title="Reset Timer"
         >
           <RotateCcw size={24} strokeWidth={2} />
         </motion.button>
 
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={switchMode}
-          className="w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg transition-all p-0"
+          whileHover={disabled ? {} : { scale: 1.05 }}
+          whileTap={disabled ? {} : { scale: 0.95 }}
+          onClick={disabled ? undefined : switchMode}
+          disabled={disabled}
+          className={`w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg transition-all p-0 ${
+            disabled ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
           title="Switch Mode"
         >
           <Coffee size={24} strokeWidth={2} />

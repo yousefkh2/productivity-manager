@@ -290,14 +290,16 @@ function App() {
               {/* Actions */}
               <button
                 onClick={() => setShowDailyIntent(true)}
-                disabled={tasks.length > 0 || (dayData?.target_pomos > 0)}
+                disabled={tasks.length > 0 || (dayData?.target_pomos > 0) || dayData?.day_rating}
                 className={`px-4 py-2 text-sm transition-all ${
-                  tasks.length > 0 || (dayData?.target_pomos > 0)
+                  tasks.length > 0 || (dayData?.target_pomos > 0) || dayData?.day_rating
                     ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
                     : 'btn-secondary hover:bg-white/20'
                 }`}
                 title={
-                  tasks.length > 0 || (dayData?.target_pomos > 0)
+                  dayData?.day_rating
+                    ? 'Day is complete and archived.'
+                    : tasks.length > 0 || (dayData?.target_pomos > 0)
                     ? 'Day already planned. Add tasks manually if needed.'
                     : 'Plan your day and add tasks'
                 }
@@ -539,27 +541,76 @@ function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         {activeTab === 'timer' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left: Timer */}
-            <div className="flex items-center justify-center">
-              <Timer
-                onComplete={handlePomodoroComplete}
-                taskId={selectedTaskId}
-                selectedTask={tasks.find(t => t.id === selectedTaskId)}
-              />
+          <div className="relative">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left: Timer */}
+              <div className="flex items-center justify-center">
+                <Timer
+                  onComplete={handlePomodoroComplete}
+                  taskId={selectedTaskId}
+                  selectedTask={tasks.find(t => t.id === selectedTaskId)}
+                  disabled={!!dayData?.day_rating}
+                />
+              </div>
+
+              {/* Right: Tasks */}
+              <div>
+                <TaskList
+                  tasks={tasks}
+                  selectedTaskId={selectedTaskId}
+                  onAddTask={handleAddTask}
+                  onUpdateTask={handleUpdateTask}
+                  onDeleteTask={handleDeleteTask}
+                  onSelectTask={setSelectedTaskId}
+                  disabled={!!dayData?.day_rating}
+                />
+              </div>
             </div>
 
-            {/* Right: Tasks */}
-            <div>
-              <TaskList
-                tasks={tasks}
-                selectedTaskId={selectedTaskId}
-                onAddTask={handleAddTask}
-                onUpdateTask={handleUpdateTask}
-                onDeleteTask={handleDeleteTask}
-                onSelectTask={setSelectedTaskId}
-              />
-            </div>
+            {/* Day Complete Overlay */}
+            {dayData?.day_rating && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-2xl flex items-center justify-center pointer-events-none"
+              >
+                <div className="text-center space-y-4 pointer-events-auto">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2, type: 'spring' }}
+                    className="inline-block"
+                  >
+                    <div className="w-20 h-20 rounded-full bg-insight-purple/20 border-2 border-insight-purple flex items-center justify-center mb-4">
+                      <Moon size={40} className="text-insight-purple" />
+                    </div>
+                  </motion.div>
+                  <h3 className="text-3xl font-bold text-white">Day Archived</h3>
+                  <p className="text-gray-300 max-w-md mx-auto">
+                    You've completed your reflection for this day. <br />
+                    Work is locked to preserve your record.
+                  </p>
+                  <div className="flex gap-3 justify-center pt-4">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowEndDay(true)}
+                      className="px-6 py-3 rounded-xl bg-insight-purple/20 border border-insight-purple text-insight-purple hover:bg-insight-purple/30 transition-colors"
+                    >
+                      View Reflection
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setActiveTab('analytics')}
+                      className="px-6 py-3 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-colors"
+                    >
+                      View Analytics
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
         ) : (
           <Analytics key={`analytics-${activeTab}`} currentDate={currentDate} />

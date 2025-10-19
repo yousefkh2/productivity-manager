@@ -7,7 +7,7 @@ import { Plus, Check, Trash2, Clock, Target, Zap } from 'lucide-react';
  * Display and manage daily tasks with progress tracking
  * Tasks added via "+" button are marked with ⚡ (not part of daily plan)
  */
-export default function TaskList({ tasks, onAddTask, onUpdateTask, onDeleteTask, onSelectTask, selectedTaskId }) {
+export default function TaskList({ tasks, onAddTask, onUpdateTask, onDeleteTask, onSelectTask, selectedTaskId, disabled = false }) {
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskEstimate, setNewTaskEstimate] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
@@ -47,19 +47,21 @@ export default function TaskList({ tasks, onAddTask, onUpdateTask, onDeleteTask,
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Today's Tasks</h2>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsAdding(!isAdding)}
-          className="btn-secondary w-10 h-10 flex items-center justify-center"
-        >
-          <Plus size={20} className={isAdding ? 'rotate-45 transition-transform' : ''} />
-        </motion.button>
+        {!disabled && (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsAdding(!isAdding)}
+            className="btn-secondary w-10 h-10 flex items-center justify-center"
+          >
+            <Plus size={20} className={isAdding ? 'rotate-45 transition-transform' : ''} />
+          </motion.button>
+        )}
       </div>
 
       {/* Add Task Form */}
       <AnimatePresence>
-        {isAdding && (
+        {isAdding && !disabled && (
           <motion.form
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -120,27 +122,30 @@ export default function TaskList({ tasks, onAddTask, onUpdateTask, onDeleteTask,
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: -100 }}
-                  onClick={() => onSelectTask(task.id)}
-                  className={`glass rounded-xl p-4 cursor-pointer transition-all ${
+                  onClick={() => !disabled && onSelectTask(task.id)}
+                  className={`glass rounded-xl p-4 transition-all ${
+                    disabled ? 'cursor-default' : 'cursor-pointer'
+                  } ${
                     isSelected
                       ? 'ring-2 ring-time-red'
-                      : 'hover:bg-white/10'
+                      : disabled ? '' : 'hover:bg-white/10'
                   } ${task.is_completed ? 'opacity-60' : ''}`}
                 >
                   <div className="flex items-start gap-3">
                     {/* Checkbox */}
                     <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
+                      whileHover={disabled ? {} : { scale: 1.1 }}
+                      whileTap={disabled ? {} : { scale: 0.9 }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleComplete(task);
+                        if (!disabled) toggleComplete(task);
                       }}
+                      disabled={disabled}
                       className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${
                         task.completed
                           ? 'bg-focus-green border-focus-green'
                           : 'border-focus-border hover:border-focus-green'
-                      }`}
+                      } ${disabled ? 'cursor-not-allowed opacity-70' : ''}`}
                     >
                       {task.completed && <Check size={16} />}
                     </motion.button>
@@ -194,17 +199,19 @@ export default function TaskList({ tasks, onAddTask, onUpdateTask, onDeleteTask,
                     </div>
 
                     {/* Delete Button */}
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteTask(task.id);
-                      }}
-                      className="text-gray-500 hover:text-time-red transition-colors"
-                    >
-                      <Trash2 size={18} />
-                    </motion.button>
+                    {!disabled && (
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteTask(task.id);
+                        }}
+                        className="text-gray-500 hover:text-time-red transition-colors"
+                      >
+                        <Trash2 size={18} />
+                      </motion.button>
+                    )}
                   </div>
                 </motion.div>
               );
