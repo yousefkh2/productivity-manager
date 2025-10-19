@@ -52,7 +52,7 @@ export default function TaskList({ tasks, onAddTask, onUpdateTask, onDeleteTask,
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsAdding(!isAdding)}
-            className="btn-secondary w-10 h-10 flex items-center justify-center"
+            className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg transition-all"
           >
             <Plus size={20} className={isAdding ? 'rotate-45 transition-transform' : ''} />
           </motion.button>

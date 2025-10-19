@@ -22,3 +22,4 @@ You are using Node.js 20.17.0. Vite requires Node.js version 20.19+ or 22.12+. P
 4:32:34 PM [vite] (client) hmr update /src/index.css, /src/components/TaskSwitchDialog.jsx
 4:35:26 PM [vite] (client) hmr update /src/components/Timer.jsx, /src/index.css
 4:35:37 PM [vite] (client) hmr update /src/components/Timer.jsx, /src/index.css
+4:40:52 PM [vite] (client) hmr update /src/components/TaskList.jsx, /src/index.css
