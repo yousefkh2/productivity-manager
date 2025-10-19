@@ -188,7 +188,7 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
 
   const handleReviewSave = async (reviewData) => {
     console.log('Review saved:', reviewData, 'Pauses:', pauseCount);
-    // Pass review data, actual duration, AND pause count to parent
+    // Pass review data, actual duration, and pause count to parent
     if (onComplete) {
       await onComplete(taskId, reviewData, FOCUS_TIME, pauseCount);
     }

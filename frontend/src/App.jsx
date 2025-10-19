@@ -52,6 +52,17 @@ function App() {
     }
   }, [selectedTaskId, currentDate]);
 
+  // Force re-render every second to update break budget display in real-time
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Update every second to show real-time break usage
+      forceUpdate(prev => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Load today's data on mount
   useEffect(() => {
     loadDayData();
@@ -66,6 +77,18 @@ function App() {
       console.error('Backend offline:', error);
       setIsOnline(false);
     }
+  };
+
+  // Calculate break budget for the day
+  const calculateBreakBudget = (targetPomos) => {
+    if (!targetPomos) return 0;
+    
+    const shortBreaks = Math.floor((targetPomos - 1) / 4) * 3 + (targetPomos - 1) % 4;
+    const longBreaks = Math.floor((targetPomos - 1) / 4);
+    const lunchBreak = targetPomos >= 8 ? 30 : 0;
+    
+    const totalBreakMinutes = (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
+    return totalBreakMinutes;
   };
 
   const loadDayData = async () => {
@@ -623,6 +646,84 @@ function App() {
                     }
                   })()}
                 </div>
+
+                {/* Break Budget Tracker */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 glass rounded-xl p-4 border border-white/10"
+                >
+                  {(() => {
+                    const totalBreakMinutes = calculateBreakBudget(dayData.target_pomos);
+                    
+                    // Calculate total elapsed time since planning
+                    const now = new Date();
+                    const plannedTime = dayData.planned_at 
+                      ? new Date(dayData.planned_at) 
+                      : dayData.start_time 
+                      ? new Date(dayData.start_time)
+                      : now;
+                    const totalElapsedMinutes = Math.floor((now - plannedTime) / (1000 * 60));
+                    
+                    // Calculate total work time completed (completed pomos * 25 minutes)
+                    const completedPomos = tasks.reduce((sum, t) => sum + (t.pomodoros_spent || 0), 0);
+                    const workMinutesCompleted = completedPomos * 25;
+                    
+                    // Add current active work time if timer is running
+                    const activeWorkMinutes = timerStateRef.current.isRunning && timerStateRef.current.mode === 'focus'
+                      ? Math.floor((timerStateRef.current.totalTime - timerStateRef.current.timeLeft) / 60)
+                      : 0;
+                    
+                    // Break time used = Total elapsed - Total work time
+                    const totalUsedMinutes = Math.max(0, totalElapsedMinutes - workMinutesCompleted - activeWorkMinutes);
+                    const remainingMinutes = Math.max(0, totalBreakMinutes - totalUsedMinutes);
+                    const budgetProgress = totalBreakMinutes > 0 ? (totalUsedMinutes / totalBreakMinutes) * 100 : 0;
+                    
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <div className="text-sm text-gray-400">Break Budget</div>
+                            <div className="text-lg font-semibold text-white">
+                              {remainingMinutes} min remaining
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-gray-400">Total Allocated</div>
+                            <div className="text-sm font-medium text-plan-blue">{totalBreakMinutes} min</div>
+                          </div>
+                        </div>
+                        
+                        {/* Break Budget Progress Bar */}
+                        <div className="h-2 bg-gray-800 rounded-full overflow-hidden mb-2">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(100, budgetProgress)}%` }}
+                            transition={{ duration: 0.3 }}
+                            className={`h-full ${
+                              budgetProgress >= 100
+                                ? 'bg-gradient-to-r from-time-red to-red-400'
+                                : budgetProgress >= 80
+                                ? 'bg-gradient-to-r from-yellow-500 to-yellow-400'
+                                : 'bg-gradient-to-r from-plan-blue to-blue-400'
+                            }`}
+                          />
+                        </div>
+                        
+                        {/* Status message */}
+                        <div className="text-xs text-center">
+                          {budgetProgress >= 100 ? (
+                            <span className="text-time-red font-semibold">⚠️ No break time left! Every pause delays your finish time.</span>
+                          ) : budgetProgress >= 80 ? (
+                            <span className="text-yellow-400">⏱️ Running low on break time ({totalUsedMinutes}/{totalBreakMinutes} min used)</span>
+                          ) : (
+                            <span className="text-gray-400">{totalUsedMinutes} / {totalBreakMinutes} minutes of breaks used</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </motion.div>
 
                 {/* Reward Display */}
                 {dayData.reward && (
