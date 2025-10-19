@@ -39,6 +39,9 @@ In the Daily Progress banner, you'll see:
   - **Blue**: Under 80% used (healthy)
   - **Yellow**: 80-99% used (running low)
   - **Red**: 100%+ used (exceeding budget)
+- **Dynamic finish time** that shifts forward when you exceed the break budget
+  - Shows delay in red: "+X min delay"
+  - Updates every second in real-time
 
 ### Visual Warnings
 - **< 80% used**: Shows normal usage stats
@@ -64,13 +67,22 @@ In the Daily Progress banner, you'll see:
 
 ### Calculation Logic
 ```javascript
+// Calculate break budget
+const totalBreakMinutes = (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
+
+// Calculate break time used
 const totalElapsedMinutes = (now - plannedTime) / (1000 * 60);
 const workMinutesCompleted = completedPomos * 25;
 const activeWorkMinutes = isRunning && mode === 'focus' 
   ? (totalTime - timeLeft) / 60 
   : 0;
 const breakTimeUsed = totalElapsed - workCompleted - activeWork;
-const remainingBreaks = breakBudget - breakTimeUsed;
+
+// Calculate delay
+const delayMinutes = Math.max(0, breakTimeUsed - totalBreakMinutes);
+
+// Adjust finish time
+const finishTime = plannedTime + totalWorkAndBreaks + delayMinutes;
 ```
 
 ### Data Flow
@@ -90,13 +102,15 @@ When you plan your day, the system automatically calculates your break budget ba
 - Visual warnings help you stay on track
 
 ### Consequences
-- **Stay within budget**: Finish on time as planned
-- **Exceed budget**: Every extra minute of pause delays your finish time
-- **No breaks left**: Clear warning that pauses now push back your schedule
+- **Stay within budget**: Finish on time as planned ✅
+- **Exceed budget**: Estimated finish time shifts forward minute-by-minute ⏱️
+- **No breaks left**: Clear warning that every minute delays your schedule ⚠️
+
+The system provides **immediate feedback** by updating the estimated finish time in real-time, so you always know the true impact of taking breaks.
 
 ## Future Enhancements
-- Show projected new finish time when budget is exceeded
 - Break budget visualization in Analytics tab
 - Historical break usage trends over multiple days
-- Notifications when approaching break budget limit
+- Notifications when approaching break budget limit (80%, 90%, 100%)
 - Suggested break schedule to stay on track
+- "Recovery mode" suggestions when significantly behind schedule

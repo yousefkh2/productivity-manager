@@ -482,16 +482,29 @@ function App() {
                         : new Date();
                       const pomos = dayData.target_pomos;
                       
-                      // Each pomodoro: 25min work + 5min break = 30min
-                      // Every 4 pomodoros: add 15min long break instead of 5min
+                      // Calculate base time (work + planned breaks)
                       const shortBreaks = Math.floor((pomos - 1) / 4) * 3 + (pomos - 1) % 4;
                       const longBreaks = Math.floor((pomos - 1) / 4);
                       const lunchBreak = pomos >= 8 ? 30 : 0;
-                      
                       const totalMinutes = (pomos * 25) + (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
                       
+                      // Calculate break budget and usage
+                      const totalBreakMinutes = (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
+                      const now = new Date();
+                      const totalElapsedMinutes = Math.floor((now - plannedTime) / (1000 * 60));
+                      const completedPomos = tasks.reduce((sum, t) => sum + (t.pomodoros_spent || 0), 0);
+                      const workMinutesCompleted = completedPomos * 25;
+                      const activeWorkMinutes = timerStateRef.current.isRunning && timerStateRef.current.mode === 'focus'
+                        ? Math.floor((timerStateRef.current.totalTime - timerStateRef.current.timeLeft) / 60)
+                        : 0;
+                      const breakTimeUsed = Math.max(0, totalElapsedMinutes - workMinutesCompleted - activeWorkMinutes);
+                      
+                      // Calculate delay (how much we've exceeded the break budget)
+                      const delayMinutes = Math.max(0, breakTimeUsed - totalBreakMinutes);
+                      
+                      // Base finish time + delay
                       const finishTime = new Date(plannedTime);
-                      finishTime.setMinutes(plannedTime.getMinutes() + totalMinutes);
+                      finishTime.setMinutes(plannedTime.getMinutes() + totalMinutes + delayMinutes);
                       
                       return finishTime.toLocaleTimeString('en-US', { 
                         hour: 'numeric', 
@@ -500,6 +513,36 @@ function App() {
                       });
                     })()}
                   </div>
+                  {(() => {
+                    // Show delay indicator if over budget
+                    const plannedTime = dayData.planned_at 
+                      ? new Date(dayData.planned_at) 
+                      : dayData.start_time 
+                      ? new Date(dayData.start_time)
+                      : new Date();
+                    const pomos = dayData.target_pomos;
+                    const shortBreaks = Math.floor((pomos - 1) / 4) * 3 + (pomos - 1) % 4;
+                    const longBreaks = Math.floor((pomos - 1) / 4);
+                    const lunchBreak = pomos >= 8 ? 30 : 0;
+                    const totalBreakMinutes = (shortBreaks * 5) + (longBreaks * 15) + lunchBreak;
+                    const now = new Date();
+                    const totalElapsedMinutes = Math.floor((now - plannedTime) / (1000 * 60));
+                    const completedPomos = tasks.reduce((sum, t) => sum + (t.pomodoros_spent || 0), 0);
+                    const workMinutesCompleted = completedPomos * 25;
+                    const activeWorkMinutes = timerStateRef.current.isRunning && timerStateRef.current.mode === 'focus'
+                      ? Math.floor((timerStateRef.current.totalTime - timerStateRef.current.timeLeft) / 60)
+                      : 0;
+                    const breakTimeUsed = Math.max(0, totalElapsedMinutes - workMinutesCompleted - activeWorkMinutes);
+                    const delayMinutes = Math.max(0, breakTimeUsed - totalBreakMinutes);
+                    
+                    if (delayMinutes > 0) {
+                      return (
+                        <div className="text-xs text-time-red mt-1">
+                          +{delayMinutes} min delay
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
               </div>
 
