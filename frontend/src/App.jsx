@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Cloud, CloudOff, Calendar, TrendingUp, BarChart3, Timer as TimerIcon, Moon, Gift } from 'lucide-react';
 import Timer from './components/Timer';
 import TaskList from './components/TaskList';
 import DailyIntent from './components/DailyIntent';
 import EndDayDialog from './components/EndDayDialog';
+import TaskSwitchDialog from './components/TaskSwitchDialog';
 import Analytics from './components/Analytics';
 import api from './api/client';
 
@@ -16,9 +17,14 @@ function App() {
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [showDailyIntent, setShowDailyIntent] = useState(false);
   const [showEndDay, setShowEndDay] = useState(false);
+  const [showTaskSwitch, setShowTaskSwitch] = useState(false);
+  const [pendingTaskSwitch, setPendingTaskSwitch] = useState(null);
   const [isOnline, setIsOnline] = useState(true);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('timer'); // 'timer' | 'analytics'
+  
+  // Refs to track timer state
+  const timerStateRef = useRef({ isRunning: false, timeLeft: 0, totalTime: 0 });
 
   // Load today's data on mount
   useEffect(() => {
@@ -121,6 +127,63 @@ function App() {
     } catch (error) {
       console.error('Failed to delete task:', error);
     }
+  };
+
+  // Smart task selection with grace period
+  const handleSelectTask = (newTaskId) => {
+    // If trying to select the same task, do nothing
+    if (newTaskId === selectedTaskId) return;
+
+    // If timer is not running, or in break mode, switch freely
+    if (!timerStateRef.current.isRunning || timerStateRef.current.mode === 'break') {
+      setSelectedTaskId(newTaskId);
+      return;
+    }
+
+    // Calculate time elapsed in current pomodoro
+    const timeElapsed = timerStateRef.current.totalTime - timerStateRef.current.timeLeft;
+    const gracePeriod = 30; // 30 seconds grace period
+
+    if (timeElapsed <= gracePeriod) {
+      // Within grace period - switch silently
+      console.log('Within grace period, switching task silently');
+      setSelectedTaskId(newTaskId);
+    } else {
+      // Past grace period - show warning dialog
+      const currentTask = tasks.find(t => t.id === selectedTaskId);
+      const newTask = tasks.find(t => t.id === newTaskId);
+      
+      setPendingTaskSwitch({
+        newTaskId,
+        currentTask: currentTask?.task_name || 'Unknown',
+        newTask: newTask?.task_name || 'Unknown',
+        timeElapsed: formatElapsedTime(timeElapsed),
+      });
+      setShowTaskSwitch(true);
+    }
+  };
+
+  // Confirm task switch (abort current pomo and switch)
+  const handleConfirmTaskSwitch = () => {
+    if (pendingTaskSwitch) {
+      // This will trigger the Timer to abort via onTaskSwitchAbort callback
+      setSelectedTaskId(pendingTaskSwitch.newTaskId);
+      setShowTaskSwitch(false);
+      setPendingTaskSwitch(null);
+    }
+  };
+
+  // Cancel task switch
+  const handleCancelTaskSwitch = () => {
+    setShowTaskSwitch(false);
+    setPendingTaskSwitch(null);
+  };
+
+  // Format elapsed time for display
+  const formatElapsedTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handlePomodoroComplete = async (taskId, reviewData = null, actualDuration = 1500, pauseCount = 0) => {
@@ -597,6 +660,9 @@ function App() {
                   taskId={selectedTaskId}
                   selectedTask={tasks.find(t => t.id === selectedTaskId)}
                   disabled={!!dayData?.day_rating}
+                  onTimerStateChange={(state) => {
+                    timerStateRef.current = state;
+                  }}
                 />
               </div>
 
@@ -608,7 +674,7 @@ function App() {
                   onAddTask={handleAddTask}
                   onUpdateTask={handleUpdateTask}
                   onDeleteTask={handleDeleteTask}
-                  onSelectTask={setSelectedTaskId}
+                  onSelectTask={handleSelectTask}
                   disabled={!!dayData?.day_rating}
                 />
               </div>
@@ -684,6 +750,15 @@ function App() {
         onClose={() => setShowEndDay(false)}
         onSave={handleSaveEndDay}
         dayData={{ ...dayData, tasks }}
+      />
+
+      <TaskSwitchDialog
+        isOpen={showTaskSwitch}
+        onClose={handleCancelTaskSwitch}
+        onConfirm={handleConfirmTaskSwitch}
+        currentTask={pendingTaskSwitch?.currentTask}
+        newTask={pendingTaskSwitch?.newTask}
+        timeElapsed={pendingTaskSwitch?.timeElapsed}
       />
     </div>
   );

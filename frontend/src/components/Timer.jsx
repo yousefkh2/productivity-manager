@@ -9,7 +9,7 @@ import PomodoroReview from './PomodoroReview';
  * 25 minutes Pomodoro with smooth animations
  * Side button icons: 36px (large and visible)
  */
-export default function Timer({ onComplete, taskId, selectedTask, disabled = false }) {
+export default function Timer({ onComplete, taskId, selectedTask, disabled = false, onTimerStateChange }) {
   // TESTING MODE: 10 seconds for focus, 5 seconds for break
   const FOCUS_TIME = 25 * 60; // Change to 25 * 60 for production (25 minutes)
   const BREAK_TIME = 5 * 60;  // Change to 5 * 60 for production (5 minutes)
@@ -49,6 +49,37 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
 
   const totalTime = mode === 'focus' ? FOCUS_TIME : BREAK_TIME;
   const progress = ((totalTime - timeLeft) / totalTime) * 100;
+
+  // Notify parent about timer state changes
+  useEffect(() => {
+    if (onTimerStateChange) {
+      onTimerStateChange({
+        isRunning,
+        timeLeft,
+        totalTime,
+        mode,
+        pauseCount,
+      });
+    }
+  }, [isRunning, timeLeft, mode, pauseCount, onTimerStateChange]);
+
+  // Handle task switching mid-session (abort logic)
+  const previousTaskIdRef = useRef(taskId);
+  useEffect(() => {
+    // Only abort if we're switching tasks, not on initial mount
+    if (previousTaskIdRef.current && taskId !== previousTaskIdRef.current) {
+      // Task switched during active pomodoro
+      if (isRunning && mode === 'focus') {
+        console.log('Task switched mid-pomodoro - aborting current session');
+        // Stop timer and increment pause count as penalty
+        setIsRunning(false);
+        setPauseCount(prev => prev + 1);
+        // Reset to beginning (don't save the partial pomo)
+        setTimeLeft(FOCUS_TIME);
+      }
+    }
+    previousTaskIdRef.current = taskId;
+  }, [taskId, isRunning, mode]);
 
   // Persist timer state to localStorage whenever it changes
   useEffect(() => {

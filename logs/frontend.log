@@ -14,3 +14,11 @@ You are using Node.js 20.17.0. Vite requires Node.js version 20.19+ or 22.12+. P
 4:18:49 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
 4:18:56 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
 4:19:07 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
+4:30:07 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
+4:30:30 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
+4:30:50 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
+4:31:04 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
+4:32:34 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
+4:32:34 PM [vite] (client) hmr update /src/index.css, /src/components/TaskSwitchDialog.jsx
+4:35:26 PM [vite] (client) hmr update /src/components/Timer.jsx, /src/index.css
+4:35:37 PM [vite] (client) hmr update /src/components/Timer.jsx, /src/index.css
