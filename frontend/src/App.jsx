@@ -9,9 +9,25 @@ import TaskSwitchDialog from './components/TaskSwitchDialog';
 import Analytics from './components/Analytics';
 import api from './api/client';
 
+// Helper function: Get the current "productivity day" (4 AM cutoff rule)
+// If it's before 4 AM, we're still on "yesterday"
+function getCurrentProductivityDate() {
+  const now = new Date();
+  const hour = now.getHours();
+  
+  // If it's before 4 AM, subtract one day
+  if (hour < 4) {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0];
+  }
+  
+  return now.toISOString().split('T')[0];
+}
+
 function App() {
   // State
-  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [currentDate, setCurrentDate] = useState(getCurrentProductivityDate());
   const [dayData, setDayData] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [selectedTaskId, setSelectedTaskId] = useState(() => {
@@ -58,10 +74,16 @@ function App() {
     const interval = setInterval(() => {
       // Update every second to show real-time break usage
       forceUpdate(prev => prev + 1);
+      
+      // Check if the productivity date has changed (e.g., crossed 4 AM)
+      const newDate = getCurrentProductivityDate();
+      if (newDate !== currentDate) {
+        setCurrentDate(newDate);
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [currentDate]);
 
   // Load today's data on mount
   useEffect(() => {

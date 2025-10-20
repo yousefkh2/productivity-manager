@@ -127,7 +127,7 @@ func initDB() error {
 		end_time TIMESTAMP,
 		planned_at TIMESTAMP,
 		comment TEXT,
-		day_rating INTEGER CHECK(day_rating BETWEEN 1 AND 5),
+		day_rating INTEGER CHECK(day_rating BETWEEN 1 AND 10),
 		main_distraction TEXT,
 		reflection_notes TEXT,
 		reward TEXT DEFAULT ''
