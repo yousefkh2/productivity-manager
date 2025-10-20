@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, RotateCcw, Coffee, Maximize2, Minimize2, Settings } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Maximize2, Minimize2, Settings, Bug } from 'lucide-react';
 import PipTimer from './PipTimer';
 import PomodoroReview from './PomodoroReview';
 
@@ -10,9 +10,15 @@ import PomodoroReview from './PomodoroReview';
  * Side button icons: 36px (large and visible)
  */
 export default function Timer({ onComplete, taskId, selectedTask, disabled = false, onTimerStateChange }) {
-  // TESTING MODE: 10 seconds for focus, 5 seconds for break
-  const FOCUS_TIME = 25 * 60; // Change to 25 * 60 for production (25 minutes)
-  const BREAK_TIME = 5 * 60;  // Change to 5 * 60 for production (5 minutes)
+  // Debug mode - can be toggled with Ctrl+Shift+D
+  const [isDebugMode, setIsDebugMode] = useState(() => {
+    return localStorage.getItem('debugMode') === 'true';
+  });
+
+  // Timer durations - debug mode uses 10 seconds, production uses 25 minutes
+  // useMemo to recalculate when debug mode changes
+  const FOCUS_TIME = isDebugMode ? 10 : 25 * 60;
+  const BREAK_TIME = isDebugMode ? 5 : 5 * 60;
   
   // Load persisted timer state from localStorage
   const loadTimerState = () => {
@@ -109,6 +115,30 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
     console.log('showReview state changed:', showReview);
   }, [showReview]);
 
+  // Keyboard shortcut for debug mode (Ctrl+Shift+D)
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        setIsDebugMode(prev => {
+          const newValue = !prev;
+          localStorage.setItem('debugMode', newValue.toString());
+          console.log(`🐛 Debug mode ${newValue ? 'ENABLED' : 'DISABLED'}`);
+          // Reset timer when toggling debug mode
+          setIsRunning(false);
+          setTimeLeft(newValue ? 10 : 25 * 60);
+          setMode('focus');
+          setPauseCount(0);
+          localStorage.removeItem('timerState');
+          return newValue;
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
   // Stop timer when disabled (day is complete)
   useEffect(() => {
     if (disabled && isRunning) {
@@ -154,7 +184,7 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
     if ('Notification' in window && Notification.permission === 'granted') {
       const notification = new Notification('Pomodoro Complete! 🍅', {
         body: mode === 'focus' 
-          ? `Great work on "${selectedTask?.task_name || 'your task'}"! Time for a break.` 
+          ? `Great work on "${selectedTask?.task_name || 'your task'}"! Review your session.` 
           : 'Break over! Ready to focus?',
         icon: '/vite.svg',
         badge: '/vite.svg',
@@ -175,8 +205,8 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
     // Show review dialog for focus sessions (don't call onComplete yet)
     if (mode === 'focus') {
       setShowReview(true);
-      setMode('break');
-      setTimeLeft(BREAK_TIME);
+      // Stay in focus mode - reset timer to focus duration
+      setTimeLeft(FOCUS_TIME);
       // Don't reset pauseCount yet - we'll reset it after review is saved
     } else {
       // Break complete - just switch back to focus
@@ -188,23 +218,55 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
 
   const handleReviewSave = async (reviewData) => {
     console.log('Review saved:', reviewData, 'Pauses:', pauseCount);
+    
+    // In debug mode, don't save to database
+    if (isDebugMode) {
+      console.log('🐛 DEBUG MODE: Skipping database save');
+      setShowReview(false);
+      setPauseCount(0);
+      // Ensure timer is reset to focus time
+      setTimeLeft(FOCUS_TIME);
+      setMode('focus');
+      localStorage.removeItem('timerState');
+      return;
+    }
+    
     // Pass review data, actual duration, and pause count to parent
     if (onComplete) {
       await onComplete(taskId, reviewData, FOCUS_TIME, pauseCount);
     }
     setShowReview(false);
     setPauseCount(0); // Reset pause count after saving
+    // Ensure timer is reset to focus time
+    setTimeLeft(FOCUS_TIME);
+    setMode('focus');
     localStorage.removeItem('timerState'); // Clear persisted state after completing
   };
 
   const handleReviewSkip = () => {
     console.log('Review skipped, Pauses:', pauseCount);
+    
+    // In debug mode, don't save to database
+    if (isDebugMode) {
+      console.log('🐛 DEBUG MODE: Skipping database save');
+      setShowReview(false);
+      setPauseCount(0);
+      // Ensure timer is reset to focus time
+      setTimeLeft(FOCUS_TIME);
+      setMode('focus');
+      localStorage.removeItem('timerState');
+      return;
+    }
+    
     // Still increment the task's pomodoro count (no review data, but pass duration and pauses)
     if (onComplete) {
       onComplete(taskId, null, FOCUS_TIME, pauseCount);
     }
     setShowReview(false);
     setPauseCount(0); // Reset pause count
+    // Ensure timer is reset to focus time
+    setTimeLeft(FOCUS_TIME);
+    setMode('focus');
     localStorage.removeItem('timerState'); // Clear persisted state
   };
 
@@ -284,6 +346,25 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
 
   return (
     <div className="flex flex-col items-center justify-center gap-8">
+      {/* Debug Mode Banner */}
+      {isDebugMode && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-yellow-500/20 border-2 border-yellow-500 rounded-xl px-6 py-3 text-center"
+        >
+          <div className="flex items-center gap-3 justify-center">
+            <span className="text-2xl">🐛</span>
+            <div>
+              <div className="font-bold text-yellow-500">DEBUG MODE ACTIVE</div>
+              <div className="text-xs text-yellow-300">
+                10s focus, 5s break • No database saves • Press Ctrl+Shift+D to toggle
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Selected Task Display */}
       {selectedTask && mode === 'focus' && (
         <motion.div
@@ -465,6 +546,32 @@ export default function Timer({ onComplete, taskId, selectedTask, disabled = fal
             )}
           </AnimatePresence>
         </div>
+
+        {/* Debug Mode Toggle */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => {
+            const newValue = !isDebugMode;
+            setIsDebugMode(newValue);
+            localStorage.setItem('debugMode', newValue.toString());
+            console.log(`🐛 Debug mode ${newValue ? 'ENABLED' : 'DISABLED'}`);
+            // Reset timer when toggling debug mode
+            setIsRunning(false);
+            setTimeLeft(newValue ? 10 : 25 * 60);
+            setMode('focus');
+            setPauseCount(0);
+            localStorage.removeItem('timerState');
+          }}
+          className={`w-14 h-14 flex items-center justify-center border border-white/10 rounded-lg transition-all p-0 ${
+            isDebugMode 
+              ? 'bg-yellow-500 hover:bg-yellow-600 text-black' 
+              : 'bg-white/10 hover:bg-white/20 text-white'
+          }`}
+          title={isDebugMode ? 'Disable Debug Mode (Ctrl+Shift+D)' : 'Enable Debug Mode (Ctrl+Shift+D)'}
+        >
+          <Bug size={24} strokeWidth={2} />
+        </motion.button>
       </div>
 
       {/* Progress Text */}
